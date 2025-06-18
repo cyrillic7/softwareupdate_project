@@ -1,0 +1,8 @@
+680 Image Machine Software - Machine Code Information
+====================================================
+Machine Name: PC-202309021153
+CPU Architecture: x86_64
+Machine Code: 45E285604ED14419AA5B3297E4498D15
+Generated Time: 2025-06-12 14:07:01
+
+Please send this machine code to software vendor to get authorization file.
