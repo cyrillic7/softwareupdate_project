@@ -215,6 +215,8 @@ REM 复制样式文件到主程序
 if "%APP%"=="680SoftwareUpdate" (
     if exist "src\main.qss" copy "src\main.qss" "packaged\%APP%\" >nul
     if exist "bin\main.qss" copy "bin\main.qss" "packaged\%APP%\" >nul
+    if exist "bin\ssh_install_auto.bat" copy "bin\ssh_install_auto.bat" "packaged\%APP%\" >nul
+    if exist "bin\install_ssh_key.py" copy "bin\install_ssh_key.py" "packaged\%APP%\" >nul
 )
 
 REM 复制设置文件

@@ -1,7 +1,7 @@
 {
-    "remoteDir": "/media/sata/",
-    "saveTime": "2025-06-12T16:12:35",
-    "serverIP": "192.168.0.106",
+    "remoteDir": "/home/ubuntu/",
+    "saveTime": "2025-06-19T14:03:57",
+    "serverIP": "1.13.80.192",
     "serverPort": 22,
-    "username": "root"
+    "username": "ubuntu"
 }

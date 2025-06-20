@@ -46,6 +46,7 @@
 #include <QMessageBox>
 #include <QTextStream>
 #include <QCryptographicHash>
+#include <QClipboard>
 
 class SettingsDialog;
 
@@ -70,6 +71,8 @@ private slots:
     void onTestFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void onMenuAction();
     void onToggleLogView();
+    void onToggleCommandView();
+    void onToggleBuiltinCommandView();
     void onVerifyFileFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void onShowMachineCode();
     void onUpgradeQtSoftware();
@@ -79,6 +82,25 @@ private slots:
     void onClearCommandOutput();
     void onCommandInputEnterPressed();
     void onOpenSettings();
+    
+    // SSH密钥管理相关槽函数
+    void onManageSSHKeys();
+    void onGenerateSSHKey();
+    void onCopyPublicKey();
+    void onInstallPublicKey();
+    void onDeleteSSHKey();
+    void onSSHKeyGenFinished(int exitCode, QProcess::ExitStatus exitStatus);
+    void onGenerateAndDeploySSHKey();
+    
+    // 内置命令窗口相关槽函数
+    void onExecuteBuiltinCommand();
+    void onClearBuiltinCommand();
+    void onClearBuiltinOutput();
+    void onBuiltinCommandInputEnterPressed();
+    void onPasswordInputEnterPressed();
+    void onPasswordInputFinished();
+    void onPasswordInputCanceled();
+    void onDeploySSHKey();
 
 private:
     void setupUI();
@@ -87,6 +109,7 @@ private:
     void connectSignals();
     void logMessage(const QString &message);
     bool validateSettings();
+    bool validateSSHSettings();  // SSH密钥功能专用验证函数
     void startUpload();
     
     // 设置保存和加载
@@ -117,6 +140,35 @@ private:
     bool checkMachineAuthorization();
     QString getAuthorizationFilePath();
     
+    // SSH密钥管理相关函数
+    QString getSSHKeyPath();
+    QString getSSHPublicKeyPath();
+    bool checkSSHKeyExists();
+    QString readPublicKey();
+    void generateSSHKey();
+    void installPublicKeyToServer();
+    void executeSSHKeyInstallation();
+    void executeSSHKeyInstallationDirect();
+    void showSmartInstallationGuide();
+    void showManualInstallationGuide();
+    void showSSHKeyStatus();
+    void showSSHTroubleshooting();
+    
+    // 内置命令窗口相关函数
+    void executeBuiltinSystemCommand(const QString &command);
+    void executeSSHCommandWithPassword(const QString &command);
+    void executeSSHWithPassword(const QString &command, const QString &password);
+    void executeSSHWithDirectPassword(const QString &command, const QString &password);
+    bool validateBasicSettings();
+    void setBuiltinCommand(const QString &command);
+    QString generateReliableSSHInstallCommand(const QString &username, const QString &ip, int port, const QString &publicKey);
+    void showPasswordInput(const QString &prompt);
+    void hidePasswordInput();
+    void processPasswordInput(const QString &password);
+    void executeSSHWithSshpass(const QString &password);
+    void executeDirectSSHCommand(const QString &password);
+    void executeSSHKeyGenerationAndDeployment();
+    
     // UI组件
     QWidget *centralWidget;
     QVBoxLayout *mainLayout;
@@ -133,6 +185,7 @@ private:
     QLabel *passwordLabel;
     QLineEdit *passwordLineEdit;
     QPushButton *testConnectionButton;
+    QPushButton *sshKeyManageButton;
     
     // 文件选择组
     QGroupBox *fileGroup;
@@ -168,6 +221,28 @@ private:
     QLabel *outputLabel;
     QTextEdit *commandOutputEdit;
     
+    // 内置命令窗口组
+    QGroupBox *builtinCommandGroup;
+    QVBoxLayout *builtinCommandLayout;
+    QHBoxLayout *builtinCommandInputLayout;
+    QHBoxLayout *quickCommandLayout;
+    QLabel *builtinCommandLabel;
+    QLineEdit *builtinCommandLineEdit;
+    QPushButton *executeBuiltinCommandButton;
+    QPushButton *clearBuiltinCommandButton;
+    QPushButton *clearBuiltinOutputButton;
+    QPushButton *deploySSHKeyButton;
+    QLabel *builtinOutputLabel;
+    QTextEdit *builtinCommandOutputEdit;
+    
+    // 密码输入相关控件
+    QWidget *passwordInputWidget;
+    QHBoxLayout *passwordInputLayout;
+    QLabel *passwordPromptLabel;
+    QLineEdit *sshPasswordLineEdit;
+    QPushButton *passwordConfirmButton;
+    QPushButton *passwordCancelButton;
+    
     // 菜单和状态栏
     QMenu *fileMenu;
     QMenu *settingsMenu;
@@ -177,6 +252,8 @@ private:
     QAction *exitAction;
     QAction *aboutAction;
     QAction *toggleLogAction;
+    QAction *toggleCommandAction;
+    QAction *toggleBuiltinCommandAction;
     QAction *showMachineCodeAction;
     QAction *openSettingsAction;
     
@@ -189,6 +266,8 @@ private:
     QProcess *preCheck7evProcess;
     QProcess *upgrade7evProcess;
     QProcess *upgradeKu5pProcess;
+    QProcess *sshKeyGenProcess;
+    QProcess *builtinCommandProcess;
     QTimer *progressTimer;
     QTimer *timeoutTimer;
     QString selectedFilePath;
@@ -203,6 +282,8 @@ private:
     QString defaultLocalPath;
     bool autoSaveSettings;
     bool showLogByDefault;
+    bool showCommandByDefault;
+    bool showBuiltinCommandByDefault;
     bool autoCleanLog;
     int logRetentionDays;
     QString qtExtractPath;
@@ -218,6 +299,10 @@ private:
     // 按钮状态管理
     void disableAllOperationButtons();
     void enableAllOperationButtons();
+    
+    QString pendingSSHCommand;  // 待执行的SSH命令
+    bool waitingForPassword;    // 是否正在等待密码输入
+    bool isGeneratingAndDeploying; // 是否正在执行一体化生成和部署
 };
 
 #endif // MAINWINDOW_H 

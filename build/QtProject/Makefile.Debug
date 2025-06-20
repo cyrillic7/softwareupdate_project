@@ -330,6 +330,8 @@ compiler_moc_header_clean:
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QTextStream \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QCryptographicHash \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/qcryptographichash.h \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtGui/QClipboard \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtGui/qclipboard.h \
 		../moc/moc_predefs.h \
 		G:/qt5.12.12/5.12.12/mingw73_64/bin/moc.exe
 	'G:\qt5.12.12\5.12.12\mingw73_64\bin\moc.exe' $(DEFINES) --include E:/winpro/680update_software/build/moc/moc_predefs.h -IG:/qt5.12.12/5.12.12/mingw73_64/mkspecs/win32-g++ -IE:/winpro/680update_software/src -IG:/qt5.12.12/5.12.12/mingw73_64/include -IG:/qt5.12.12/5.12.12/mingw73_64/include/QtWidgets -IG:/qt5.12.12/5.12.12/mingw73_64/include/QtGui -IG:/qt5.12.12/5.12.12/mingw73_64/include/QtANGLE -IG:/qt5.12.12/5.12.12/mingw73_64/include/QtNetwork -IG:/qt5.12.12/5.12.12/mingw73_64/include/QtCore -I. -IG:/qt5.12.12/Tools/mingw730_64/lib/gcc/x86_64-w64-mingw32/7.3.0/include/c++ -IG:/qt5.12.12/Tools/mingw730_64/lib/gcc/x86_64-w64-mingw32/7.3.0/include/c++/x86_64-w64-mingw32 -IG:/qt5.12.12/Tools/mingw730_64/lib/gcc/x86_64-w64-mingw32/7.3.0/include/c++/backward -IG:/qt5.12.12/Tools/mingw730_64/lib/gcc/x86_64-w64-mingw32/7.3.0/include -IG:/qt5.12.12/Tools/mingw730_64/lib/gcc/x86_64-w64-mingw32/7.3.0/include-fixed -IG:/qt5.12.12/Tools/mingw730_64/x86_64-w64-mingw32/include ../../src/mainwindow.h -o ../moc/moc_mainwindow.cpp
@@ -715,6 +717,8 @@ compiler_clean: compiler_rcc_clean compiler_moc_predefs_clean compiler_moc_heade
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QJsonObject \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/qjsonobject.h \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QFileInfo \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtGui/QClipboard \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtGui/qclipboard.h \
 		../../src/crypto_utils.h \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QString \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QByteArray
@@ -924,6 +928,8 @@ compiler_clean: compiler_rcc_clean compiler_moc_predefs_clean compiler_moc_heade
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QTextStream \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QCryptographicHash \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/qcryptographichash.h \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtGui/QClipboard \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtGui/qclipboard.h \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QSettings \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/qsettings.h \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QDateTime \
