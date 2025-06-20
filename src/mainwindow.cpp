@@ -11,6 +11,7 @@
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QApplication>
+#include <QInputDialog>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QDir>
@@ -25,7 +26,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), uploadProcess(nullptr), testProcess(nullptr), verifyProcess(nullptr),
               remoteCommandProcess(nullptr), customCommandProcess(nullptr), preCheck7evProcess(nullptr), upgrade7evProcess(nullptr),
         upgradeKu5pProcess(nullptr), sshKeyGenProcess(nullptr), builtinCommandProcess(nullptr), progressTimer(nullptr), timeoutTimer(nullptr), keyFile(nullptr),
-        settingsDialog(nullptr), remoteDirectory("/media/sata/ue_data/"), waitingForPassword(false), isGeneratingAndDeploying(false)
+        settingsDialog(nullptr), remoteDirectory("/media/sata/ue_data/"), waitingForPassword(false), isGeneratingAndDeploying(false), sshKeyEnabled(false)
 {
     // 设置应用程序信息
     QApplication::setOrganizationName("680SoftwareUpdate");
@@ -283,6 +284,7 @@ void MainWindow::setupUI()
     sshKeyManageButton->setMinimumWidth(100);
     sshKeyManageButton->setMaximumWidth(120);
     sshKeyManageButton->setToolTip("生成和部署SSH密钥，一键配置免密码连接");
+    sshKeyManageButton->setEnabled(false); // 默认禁用SSH密钥按键
     
     // 布局连接设置
     connectionLayout->addWidget(ipLabel, 0, 0);
@@ -672,10 +674,20 @@ void MainWindow::setupMenuBar()
     loadSettingsAction = new QAction("加载设置(&L)", this);
     loadSettingsAction->setShortcut(QKeySequence("Ctrl+L"));
     
+    enableSSHKeyAction = new QAction("启用SSH密钥功能(&K)", this);
+    enableSSHKeyAction->setShortcut(QKeySequence("Ctrl+K"));
+    
+    disableSSHKeyAction = new QAction("退出SSH密钥功能(&D)", this);
+    disableSSHKeyAction->setShortcut(QKeySequence("Ctrl+D"));
+    disableSSHKeyAction->setEnabled(false); // 默认禁用，启用SSH功能后才可用
+    
     settingsMenu->addAction(openSettingsAction);
     settingsMenu->addSeparator();
     settingsMenu->addAction(saveSettingsAction);
     settingsMenu->addAction(loadSettingsAction);
+    settingsMenu->addSeparator();
+    settingsMenu->addAction(enableSSHKeyAction);
+    settingsMenu->addAction(disableSSHKeyAction);
     
     // 查看菜单
     QMenu *viewMenu = menuBar()->addMenu("查看(&V)");
@@ -752,6 +764,8 @@ void MainWindow::connectSignals()
     connect(toggleCommandAction, &QAction::triggered, this, &MainWindow::onToggleCommandView);
     connect(toggleBuiltinCommandAction, &QAction::triggered, this, &MainWindow::onToggleBuiltinCommandView);
     connect(showMachineCodeAction, &QAction::triggered, this, &MainWindow::onShowMachineCode);
+    connect(enableSSHKeyAction, &QAction::triggered, this, &MainWindow::onEnableSSHKey);
+    connect(disableSSHKeyAction, &QAction::triggered, this, &MainWindow::onDisableSSHKey);
 }
 
 void MainWindow::onSelectFile()
@@ -5736,4 +5750,100 @@ void MainWindow::executeSSHWithDirectPassword(const QString &command, const QStr
             builtinCommandProcess = nullptr;
         }
     }
+}
+
+void MainWindow::onEnableSSHKey()
+{
+    // 如果SSH密钥功能已启用，则直接返回
+    if (sshKeyEnabled) {
+        QMessageBox::information(this, "SSH密钥功能", 
+            "SSH密钥功能已启用！\n\n"
+            "您现在可以使用SSH密钥管理功能。");
+        return;
+    }
+    
+    // 弹出密码输入对话框
+    bool ok;
+    QString password = QInputDialog::getText(this, 
+        "启用SSH密钥功能", 
+        "请输入管理员密码以启用SSH密钥功能：",
+        QLineEdit::Password, 
+        "", 
+        &ok);
+    
+    if (!ok) {
+        // 用户取消了输入
+        logMessage("用户取消了SSH密钥功能启用");
+        return;
+    }
+    
+    // 验证密码（这里设置一个特定的密码，您可以根据需要修改）
+    const QString correctPassword = "ChencyUe2025";  // 特定密码
+    
+    if (password == correctPassword) {
+        // 密码正确，启用SSH密钥功能
+        sshKeyEnabled = true;
+        sshKeyManageButton->setEnabled(true);
+        
+        // 更新菜单项状态
+        enableSSHKeyAction->setText("SSH密钥功能已启用(&K)");
+        enableSSHKeyAction->setEnabled(false);  // 禁用启用菜单项，防止重复启用
+        disableSSHKeyAction->setEnabled(true);  // 启用退出菜单项
+        
+        logMessage("[系统] SSH密钥功能已启用！");
+        logMessage("[提示] 现在可以使用SSH密钥管理功能了");
+        
+        QMessageBox::information(this, "启用成功", 
+            "SSH密钥功能已成功启用！\n\n"
+            "现在您可以：\n"
+            "• 点击 'SSH密钥' 按钮管理SSH密钥\n"
+            "• 生成新的SSH密钥对\n"
+            "• 部署SSH密钥到服务器\n"
+            "• 配置免密码登录");
+    } else {
+        // 密码错误
+        logMessage("[错误] SSH密钥功能启用失败：密码错误");
+        QMessageBox::warning(this, "密码错误", 
+            "输入的密码不正确！\n\n"
+            "请联系管理员获取正确的密码。");
+    }
+}
+
+void MainWindow::onDisableSSHKey()
+{
+    // 如果SSH密钥功能已经禁用，则直接返回
+    if (!sshKeyEnabled) {
+        QMessageBox::information(this, "SSH密钥功能", 
+            "SSH密钥功能已经是禁用状态！");
+        return;
+    }
+    
+    // 确认对话框
+    int ret = QMessageBox::question(this, "确认退出", 
+        "确定要退出SSH密钥功能吗？\n\n"
+        "退出后SSH密钥按键将被禁用。",
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
+    
+    if (ret != QMessageBox::Yes) {
+        logMessage("用户取消了SSH密钥功能退出");
+        return;
+    }
+    
+    // 禁用SSH密钥功能
+    sshKeyEnabled = false;
+    sshKeyManageButton->setEnabled(false);
+    
+    // 更新菜单项状态
+    enableSSHKeyAction->setText("启用SSH密钥功能(&K)");
+    enableSSHKeyAction->setEnabled(true);   // 重新启用启用菜单项
+    disableSSHKeyAction->setEnabled(false); // 禁用退出菜单项
+    
+    logMessage("[系统] SSH密钥功能已退出！");
+    logMessage("[提示] SSH密钥按键已禁用，需要重新启用才能使用");
+    
+    QMessageBox::information(this, "退出成功", 
+        "SSH密钥功能已成功退出！\n\n"
+        "SSH密钥按键已被禁用。\n"
+        "如需重新使用，请通过菜单重新启用。");
 }

@@ -930,6 +930,8 @@ compiler_clean: compiler_rcc_clean compiler_moc_predefs_clean compiler_moc_heade
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/qcryptographichash.h \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtGui/QClipboard \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtGui/qclipboard.h \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtWidgets/QInputDialog \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtWidgets/qinputdialog.h \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QSettings \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/qsettings.h \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QDateTime \

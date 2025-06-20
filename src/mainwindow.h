@@ -91,6 +91,8 @@ private slots:
     void onDeleteSSHKey();
     void onSSHKeyGenFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void onGenerateAndDeploySSHKey();
+    void onEnableSSHKey();
+    void onDisableSSHKey(); // 新增：退出SSH密钥功能
     
     // 内置命令窗口相关槽函数
     void onExecuteBuiltinCommand();
@@ -256,6 +258,8 @@ private:
     QAction *toggleBuiltinCommandAction;
     QAction *showMachineCodeAction;
     QAction *openSettingsAction;
+    QAction *enableSSHKeyAction;
+    QAction *disableSSHKeyAction; // 新增：退出SSH密钥菜单项
     
     // 上传相关
     QProcess *uploadProcess;
@@ -303,6 +307,7 @@ private:
     QString pendingSSHCommand;  // 待执行的SSH命令
     bool waitingForPassword;    // 是否正在等待密码输入
     bool isGeneratingAndDeploying; // 是否正在执行一体化生成和部署
+    bool sshKeyEnabled; // 新增：SSH密钥功能是否已启用
 };
 
 #endif // MAINWINDOW_H 

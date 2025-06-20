@@ -9,11 +9,11 @@ echo ¡§: E:\winpro\680update_software\packaged\680SoftwareUpdate
 echo ¨¨: %~dp0
 echo.
 echo ¡§¡ì¨¨SSH¨¦¨¨¡è...
-echo ¡è: python install_ssh_key.py --host 1.13.80.192 --port 22 --user ubuntu --key-file C:\Users\Administrator\.ssh\id_rsa.pub --password "CCY19900327ld"
+echo ¡è: python install_ssh_key.py --host 192.168.0.106 --port 22 --user root --key-file C:\Users\Administrator\.ssh\id_rsa.pub --password "root"
 echo.
 echo [¡ì¨¨] ¨¨¡¤...
 echo.
-python install_ssh_key.py --host 1.13.80.192 --port 22 --user ubuntu --key-file C:\Users\Administrator\.ssh\id_rsa.pub --password "CCY19900327ld"
+python install_ssh_key.py --host 192.168.0.106 --port 22 --user root --key-file C:\Users\Administrator\.ssh\id_rsa.pub --password "root"
 echo.
 echo ========================================
 if %ERRORLEVEL% EQU 0 (
