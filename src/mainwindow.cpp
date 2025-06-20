@@ -22,6 +22,9 @@
 #include <QNetworkInterface>
 #include "settingsdialog.h"
 
+// 静态变量记录最后一次成功的认证方式
+static QString lastSuccessfulAuthMethod = "None";
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), uploadProcess(nullptr), testProcess(nullptr), verifyProcess(nullptr),
               remoteCommandProcess(nullptr), customCommandProcess(nullptr), preCheck7evProcess(nullptr), upgrade7evProcess(nullptr),
@@ -851,11 +854,43 @@ void MainWindow::onTestConnection()
     QString program;
     QStringList arguments;
     
-    // 检查是否有SSH密钥
+    // 检查是否有SSH密钥和密码
     bool hasSSHKey = checkSSHKeyExists();
+    bool hasPassword = !password.isEmpty();
     
-    if (hasSSHKey) {
-        logMessage("[测试] 检测到SSH密钥，优先使用密钥认证");
+    if (hasSSHKey && hasPassword) {
+        // 有SSH密钥和密码，使用Python脚本同时支持两种认证方式
+        logMessage("[测试] 检测到SSH密钥和密码，优先使用密钥认证");
+        
+        // 获取Python脚本路径 - 使用程序同级目录
+        QString execDir = QCoreApplication::applicationDirPath();
+        QString scriptPath = QDir(execDir).absoluteFilePath("test_ssh_connection.py");
+        
+        // 检查Python脚本是否存在
+        if (!QFile::exists(scriptPath)) {
+            logMessage(QString("[错误] SSH连接测试脚本不存在: %1").arg(scriptPath));
+            testConnectionButton->setText("测试连接");
+            testConnectionButton->setEnabled(true);
+            return;
+        }
+        
+        program = "python";
+        arguments << scriptPath
+                  << "--host" << ip
+                  << "--port" << QString::number(port)
+                  << "--user" << username
+                  << "--password" << password;
+                  
+        // 添加SSH密钥文件
+        QString keyPath = getSSHKeyPath();
+        if (QFile::exists(keyPath)) {
+            arguments << "--key-file" << keyPath;
+        }
+        
+        logMessage("[提示] 将尝试SSH密钥认证，如果失败会自动尝试密码认证");
+    } else if (hasSSHKey) {
+        // 只有SSH密钥，使用密钥认证
+        logMessage("[测试] 检测到SSH密钥，使用密钥认证");
         
         program = "ssh";
         arguments << "-o" << "ConnectTimeout=10"
@@ -870,25 +905,53 @@ void MainWindow::onTestConnection()
                   << "echo 'SSH连接测试成功'";
         
         logMessage("[提示] 使用SSH密钥认证，无需密码");
-    } else if (!password.isEmpty()) {
-        logMessage("[测试] 未检测到SSH密钥，但提供了密码");
-        logMessage("[说明] 需要SSH密钥才能进行自动化认证");
-        logMessage("[建议] 请点击'SSH密钥'按钮生成并配置SSH密钥");
+    } else if (hasPassword) {
+        // 只有密码，使用Python脚本进行连接测试
+        logMessage("[测试] 未检测到SSH密钥，使用密码认证进行连接测试");
         
-        // 重置按钮状态
-        testConnectionButton->setText("测试连接");
-        testConnectionButton->setEnabled(true);
-        return;
+        // 获取Python脚本路径 - 使用程序同级目录
+        QString execDir = QCoreApplication::applicationDirPath();
+        QString scriptPath = QDir(execDir).absoluteFilePath("test_ssh_connection.py");
+        
+        // 检查Python脚本是否存在
+        if (!QFile::exists(scriptPath)) {
+            logMessage(QString("[错误] SSH连接测试脚本不存在: %1").arg(scriptPath));
+            testConnectionButton->setText("测试连接");
+            testConnectionButton->setEnabled(true);
+            return;
+        }
+        
+        program = "python";
+        arguments << scriptPath
+                  << "--host" << ip
+                  << "--port" << QString::number(port)
+                  << "--user" << username
+                  << "--password" << password;
+        
+        // 如果有SSH密钥，也传递给脚本
+        if (hasSSHKey) {
+            QString keyPath = getSSHKeyPath();
+            if (QFile::exists(keyPath)) {
+                arguments << "--key-file" << keyPath;
+            }
+        }
+        
+        logMessage("[提示] 使用Python脚本进行连接测试，支持密码和密钥认证");
     } else {
-        logMessage("[错误] 既没有SSH密钥，也没有输入密码");
-        logMessage("[建议] 请选择以下任一方式：");
-        logMessage("1. 点击'SSH密钥'按钮生成和配置SSH密钥（推荐）");
-        logMessage("2. 或在密码字段输入服务器密码（临时方案）");
+        // 既没有SSH密钥也没有密码，尝试使用系统默认SSH连接
+        logMessage("[测试] 未检测到SSH密钥和密码，尝试系统默认SSH连接");
+        logMessage("[说明] 将尝试使用系统默认SSH配置进行连接测试");
         
-        // 重置按钮状态
-        testConnectionButton->setText("测试连接");
-        testConnectionButton->setEnabled(true);
-        return;
+        program = "ssh";
+        arguments << "-o" << "ConnectTimeout=10"
+                  << "-o" << "StrictHostKeyChecking=no"
+                  << "-o" << "UserKnownHostsFile=/dev/null"
+                  << "-o" << "BatchMode=yes"
+                  << "-p" << QString::number(port)
+                  << QString("%1@%2").arg(username).arg(ip)
+                  << "echo 'SSH连接测试成功'";
+        
+        logMessage("[提示] 如果连接失败，请配置密码或SSH密钥认证");
     }
     
     testProcess->setProcessEnvironment(env);
@@ -1066,11 +1129,53 @@ void MainWindow::onTestFinished(int exitCode, QProcess::ExitStatus exitStatus)
             logMessage(QString("[响应] %1").arg(output.trimmed()));
         }
         
-        // 如果使用SSH密钥认证成功，清空密码字段避免混淆
+        // 根据当前认证方式给出相应提示
         bool hasSSHKey = checkSSHKeyExists();
-        if (hasSSHKey) {
-            passwordLineEdit->clear();
-            logMessage("[安全] 已清空密码字段，当前使用SSH密钥认证");
+        bool hasPassword = !passwordLineEdit->text().isEmpty();
+        
+        // 检查输出中是否包含认证方式信息（来自Python脚本）
+        if (output.contains("公钥认证") || output.contains("SSH密钥认证成功")) {
+            logMessage("[安全] SSH密钥认证成功，这是最安全的连接方式");
+            lastSuccessfulAuthMethod = "SSHKey";
+            // 如果使用SSH密钥认证成功，清空密码字段避免混淆
+            if (hasPassword) {
+                passwordLineEdit->clear();
+                logMessage("[安全] 已清空密码字段，当前使用SSH密钥认证");
+            }
+        } else if (output.contains("密码认证") || output.contains("密码认证成功")) {
+            logMessage("[成功] 密码认证连接成功");
+            lastSuccessfulAuthMethod = "Password";
+            logMessage("[提示] 连接正常，如需要自动化操作建议配置SSH密钥");
+            logMessage("[建议] 点击'SSH密钥'按钮可以生成并部署SSH密钥");
+            logMessage("        SSH密钥认证更安全且无需每次输入密码");
+        } else {
+            // 传统SSH命令的处理逻辑
+            if (hasSSHKey && hasPassword) {
+                logMessage("[提示] 连接成功！当前同时配置了SSH密钥和密码认证");
+                logMessage("[建议] 为了安全和便利，建议优先使用SSH密钥认证");
+                lastSuccessfulAuthMethod = "Mixed";
+            } else if (hasSSHKey) {
+                logMessage("[安全] SSH密钥认证成功，这是最安全的连接方式");
+                lastSuccessfulAuthMethod = "SSHKey";
+                // 如果使用SSH密钥认证成功，清空密码字段避免混淆
+                if (hasPassword) {
+                    passwordLineEdit->clear();
+                    logMessage("[安全] 已清空密码字段，当前使用SSH密钥认证");
+                }
+            } else if (hasPassword) {
+                logMessage("[成功] 密码认证连接成功");
+                logMessage("[提示] 连接正常，如需自动化操作建议配置SSH密钥：");
+                logMessage("        点击'SSH密钥'按钮可以生成并部署SSH密钥");
+                logMessage("        SSH密钥认证更安全且无需每次输入密码");
+                lastSuccessfulAuthMethod = "Password";
+            } else {
+                // 既没有密钥也没有密码，但连接成功了
+                logMessage("[成功] 使用系统默认SSH配置连接成功");
+                logMessage("[说明] 服务器可能配置了免密码登录或其他认证方式");
+                logMessage("[建议] 如需要稳定的自动化操作，建议配置SSH密钥：");
+                logMessage("        点击'SSH密钥'按钮可以生成并部署SSH密钥");
+                lastSuccessfulAuthMethod = "NoAuth";
+            }
         }
     } else {
         QString error = testProcess->readAllStandardError();
@@ -1181,24 +1286,37 @@ bool MainWindow::validateSettings()
         return false;
     }
     
-    // 检查认证方式：SSH密钥或密码
+    // 检查认证方式：SSH密钥、密码或之前测试成功的无认证连接
     bool hasSSHKey = checkSSHKeyExists();
     QString password = passwordLineEdit->text();
     
-    if (!hasSSHKey && password.isEmpty()) {
+    // 如果之前连接测试成功且使用的是无认证方式，则允许继续
+    if (lastSuccessfulAuthMethod == "NoAuth") {
+        logMessage("[认证] 使用之前测试成功的无认证连接方式");
+        return true;
+    }
+    
+    if (!hasSSHKey && password.isEmpty() && lastSuccessfulAuthMethod == "None") {
         QMessageBox msgBox(this);
         msgBox.setWindowTitle("认证设置");
         msgBox.setIcon(QMessageBox::Warning);
         msgBox.setText("需要配置认证方式才能连接服务器。");
         msgBox.setInformativeText("请选择以下任一认证方式：");
         
+        QPushButton *testButton = msgBox.addButton("先测试连接", QMessageBox::ActionRole);
         QPushButton *sshKeyButton = msgBox.addButton("配置SSH密钥（推荐）", QMessageBox::ActionRole);
         QPushButton *passwordButton = msgBox.addButton("输入密码", QMessageBox::ActionRole);
         msgBox.addButton("取消", QMessageBox::RejectRole);
         
         msgBox.exec();
         
-        if (msgBox.clickedButton() == sshKeyButton) {
+        if (msgBox.clickedButton() == testButton) {
+            // 建议用户先测试连接
+            QMessageBox::information(this, "建议", 
+                "请先点击'测试连接'按钮验证服务器连接。\n"
+                "如果连接成功，即可直接进行文件传输操作。");
+            return false;
+        } else if (msgBox.clickedButton() == sshKeyButton) {
             // 打开SSH密钥管理
             onManageSSHKeys();
             return false; // 需要用户先配置SSH密钥
@@ -1221,10 +1339,20 @@ bool MainWindow::validateSettings()
     }
     
     // 显示当前使用的认证方式
-    if (hasSSHKey) {
+    if (lastSuccessfulAuthMethod == "NoAuth") {
+        logMessage("[认证] 使用无密码认证方式");
+    } else if (lastSuccessfulAuthMethod == "SSHKey") {
         logMessage("[认证] 使用SSH密钥认证，无需密码");
-    } else {
+    } else if (lastSuccessfulAuthMethod == "Password") {
         logMessage("[认证] 使用密码认证");
+    } else if (lastSuccessfulAuthMethod == "Mixed") {
+        logMessage("[认证] 使用混合认证方式（SSH密钥+密码）");
+    } else {
+        if (hasSSHKey) {
+            logMessage("[认证] 使用SSH密钥认证，无需密码");
+        } else {
+            logMessage("[认证] 使用密码认证");
+        }
     }
     
     return true;
@@ -1290,17 +1418,44 @@ void MainWindow::startUpload()
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     uploadProcess->setProcessEnvironment(env);
     
-    // 构建SCP命令，使用SSH密钥认证
+    // 根据之前的连接测试结果构建SCP命令
     QString program = "scp";
     QStringList arguments;
     arguments << "-o" << "ConnectTimeout=30"
               << "-o" << "StrictHostKeyChecking=no"
-              << "-o" << "UserKnownHostsFile=/dev/null"
-              << "-o" << "PreferredAuthentications=publickey,password"
-              << "-o" << "PubkeyAuthentication=yes"
-              << "-o" << "PasswordAuthentication=yes"
-              << "-o" << "BatchMode=yes"  // 非交互模式
-              << "-P" << QString::number(port)  // 注意SCP用大写P
+              << "-o" << "UserKnownHostsFile=/dev/null";
+    
+    // 根据上次成功的认证方式设置认证参数
+    if (lastSuccessfulAuthMethod == "NoAuth") {
+        // 无认证方式，使用最简单的连接
+        arguments << "-o" << "BatchMode=yes"
+                  << "-o" << "PasswordAuthentication=no"
+                  << "-o" << "PubkeyAuthentication=yes";
+        logMessage("[认证] 使用无密码认证方式进行文件传输");
+    } else if (lastSuccessfulAuthMethod == "SSHKey") {
+        // SSH密钥认证
+        arguments << "-o" << "PreferredAuthentications=publickey"
+                  << "-o" << "PubkeyAuthentication=yes"
+                  << "-o" << "PasswordAuthentication=no"
+                  << "-o" << "BatchMode=yes";
+        logMessage("[认证] 使用SSH密钥认证进行文件传输");
+    } else if (lastSuccessfulAuthMethod == "Password") {
+        // 密码认证
+        arguments << "-o" << "PreferredAuthentications=password"
+                  << "-o" << "PubkeyAuthentication=no"
+                  << "-o" << "PasswordAuthentication=yes"
+                  << "-o" << "BatchMode=yes";
+        logMessage("[认证] 使用密码认证进行文件传输");
+    } else {
+        // 混合认证或默认情况
+        arguments << "-o" << "PreferredAuthentications=publickey,password"
+                  << "-o" << "PubkeyAuthentication=yes"
+                  << "-o" << "PasswordAuthentication=yes"
+                  << "-o" << "BatchMode=yes";
+        logMessage("[认证] 使用混合认证方式进行文件传输");
+    }
+    
+    arguments << "-P" << QString::number(port)  // 注意SCP用大写P
               << selectedFilePath
               << remoteFile;
     
