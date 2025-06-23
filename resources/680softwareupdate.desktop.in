@@ -1,0 +1,22 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=680图像机软件升级工具
+Name[en]=680 Software Update Tool
+Comment=跨平台SSH文件传输和系统升级工具
+Comment[en]=Cross-platform SSH file transfer and system upgrade tool
+Exec=@CMAKE_INSTALL_PREFIX@/bin/@PROJECT_NAME@
+Icon=680softwareupdate
+Terminal=false
+StartupNotify=true
+Categories=System;Network;FileTransfer;
+Keywords=SSH;SCP;File Transfer;System Update;680;
+MimeType=application/x-ssh-config;
+
+# 支持的架构
+X-AppImage-Arch=x86_64;aarch64;armhf;
+
+# 平台特定信息
+X-Platform=Linux
+X-Supports-ARM=true
+X-Qt-Application=true 

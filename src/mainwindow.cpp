@@ -21,6 +21,7 @@
 #include <QSysInfo>
 #include <QNetworkInterface>
 #include "settingsdialog.h"
+#include "platformhelper.h"
 
 // 静态变量记录最后一次成功的认证方式
 static QString lastSuccessfulAuthMethod = "None";
@@ -71,6 +72,7 @@ MainWindow::MainWindow(QWidget *parent)
     
     logMessage("应用程序启动完成，请配置SSH设置并选择要上传的文件。");
     logMessage("使用SCP协议通过SSH安全传输文件，请确保服务器已开启SSH服务。");
+    logMessage(QString("🖥️ 运行平台：%1").arg(PlatformHelper::getPlatformInfo()));
     logMessage("✨ SSH密钥认证配置简化：");
     logMessage("1. 点击 'SSH密钥' 按钮打开密钥管理");
     logMessage("2. 选择 '生成密钥' 自动创建SSH密钥对");
@@ -80,6 +82,11 @@ MainWindow::MainWindow(QWidget *parent)
     logMessage("• 可以直接在应用内执行SSH命令");
     logMessage("• 支持一键部署SSH密钥，实现免密码登录");
     logMessage("• 实时显示命令执行结果");
+    
+    // ARM平台特别提示
+    if (PlatformHelper::isArm()) {
+        logMessage("🏗️ ARM平台优化：已针对ARM架构进行专门优化");
+    }
     
     // 检查SSH密钥状态并显示提示
     if (checkSSHKeyExists()) {
@@ -874,7 +881,7 @@ void MainWindow::onTestConnection()
             return;
         }
         
-        program = "python";
+        program = PlatformHelper::getPythonInterpreter();
         arguments << scriptPath
                   << "--host" << ip
                   << "--port" << QString::number(port)
@@ -921,7 +928,7 @@ void MainWindow::onTestConnection()
             return;
         }
         
-        program = "python";
+        program = PlatformHelper::getPythonInterpreter();
         arguments << scriptPath
                   << "--host" << ip
                   << "--port" << QString::number(port)
@@ -4493,9 +4500,6 @@ void MainWindow::showSmartInstallationGuide()
         return;
     }
     
-    // 检测操作系统
-    bool isWindows = QSysInfo::productType() == "windows";
-    
     // 显示智能安装指导对话框
     QMessageBox msgBox(this);
     msgBox.setWindowTitle("SSH公钥安装指导");
@@ -4503,7 +4507,7 @@ void MainWindow::showSmartInstallationGuide()
     
     QString instructions;
     
-    if (isWindows) {
+    if (PlatformHelper::isWindows()) {
         // Windows系统专用指导
         instructions = QString(
             "🔧 SSH公钥安装指导（Windows系统）\n\n"
@@ -4563,7 +4567,7 @@ void MainWindow::showSmartInstallationGuide()
     QApplication::clipboard()->setText(publicKey);
     
     QPushButton *copyCommandButton;
-    if (isWindows) {
+    if (PlatformHelper::isWindows()) {
         copyCommandButton = msgBox.addButton("复制Windows SSH命令", QMessageBox::ActionRole);
     } else {
         copyCommandButton = msgBox.addButton("复制ssh-copy-id命令", QMessageBox::ActionRole);
@@ -4581,7 +4585,7 @@ void MainWindow::showSmartInstallationGuide()
     
     if (clickedButton == copyCommandButton) {
         QString command;
-        if (isWindows) {
+        if (PlatformHelper::isWindows()) {
             QString windowsKeyPath = getSSHPublicKeyPath().replace("/", "\\");
             command = QString("type \"%4\" | ssh -p %3 %1@%2 \"mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys\"")
                      .arg(username).arg(ip).arg(port).arg(windowsKeyPath);
@@ -4596,9 +4600,9 @@ void MainWindow::showSmartInstallationGuide()
                    "请在终端中粘贴并执行此命令，然后输入服务器密码完成安装。").arg(command));
     } else if (clickedButton == copySSHButton) {
         QString sshCommand = QString("cat %4 | ssh -p %3 %1@%2 \"mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys\"")
-                            .arg(username).arg(ip).arg(port).arg(isWindows ? getSSHPublicKeyPath().replace("/", "\\") : getSSHPublicKeyPath());
+                            .arg(username).arg(ip).arg(port).arg(PlatformHelper::isWindows() ? getSSHPublicKeyPath().replace("/", "\\") : getSSHPublicKeyPath());
         
-        if (isWindows) {
+        if (PlatformHelper::isWindows()) {
             sshCommand = QString("type \"%4\" | ssh -p %3 %1@%2 \"mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys\"")
                         .arg(username).arg(ip).arg(port).arg(getSSHPublicKeyPath().replace("/", "\\"));
         }
@@ -4610,9 +4614,9 @@ void MainWindow::showSmartInstallationGuide()
                    "此命令适用于所有支持SSH的系统。").arg(sshCommand));
     } else if (clickedButton == copyToBuiltinButton) {
         QString sshCommand = QString("cat %4 | ssh -p %3 %1@%2 \"mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys\"")
-                            .arg(username).arg(ip).arg(port).arg(isWindows ? getSSHPublicKeyPath().replace("/", "\\") : getSSHPublicKeyPath());
+                            .arg(username).arg(ip).arg(port).arg(PlatformHelper::isWindows() ? getSSHPublicKeyPath().replace("/", "\\") : getSSHPublicKeyPath());
         
-        if (isWindows) {
+        if (PlatformHelper::isWindows()) {
             sshCommand = QString("type \"%4\" | ssh -p %3 %1@%2 \"mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys\"")
                         .arg(username).arg(ip).arg(port).arg(getSSHPublicKeyPath().replace("/", "\\"));
         }
@@ -4747,7 +4751,7 @@ void MainWindow::executeBuiltinSystemCommand(const QString &command)
         if (!data.isEmpty()) {
             // 处理编码问题：在Windows下尝试使用本地编码
             QString output;
-            if (QSysInfo::productType() == "windows") {
+            if (PlatformHelper::isWindows()) {
                 // Windows下先尝试UTF-8，如果失败则使用本地编码
                 output = QString::fromUtf8(data);
                 if (output.contains(QChar::ReplacementCharacter)) {
@@ -4775,7 +4779,7 @@ void MainWindow::executeBuiltinSystemCommand(const QString &command)
         if (!data.isEmpty()) {
             // 处理编码问题：在Windows下尝试使用本地编码
             QString error;
-            if (QSysInfo::productType() == "windows") {
+            if (PlatformHelper::isWindows()) {
                 // Windows下先尝试UTF-8，如果失败则使用本地编码
                 error = QString::fromUtf8(data);
                 if (error.contains(QChar::ReplacementCharacter)) {
@@ -4869,7 +4873,7 @@ void MainWindow::executeBuiltinSystemCommand(const QString &command)
     bool needsInteraction = command.contains("ssh") && !command.contains("ssh-keygen");
     bool isWindowsBatchFile = command.endsWith(".bat");
     
-    if (QSysInfo::productType() == "windows") {
+    if (PlatformHelper::isWindows()) {
         if (isWindowsBatchFile) {
             // 直接执行批处理文件 - 使用Windows路径格式
             QString windowsPath = QDir::toNativeSeparators(command);
@@ -4886,11 +4890,11 @@ void MainWindow::executeBuiltinSystemCommand(const QString &command)
     } else {
         if (needsInteraction) {
             // 在新的终端窗口中运行SSH命令
-            program = "gnome-terminal";
+            program = PlatformHelper::getTerminalProgram();
             arguments << "--" << "bash" << "-c" << QString("echo '[SSH命令执行]' && echo '请输入服务器密码：' && %1; read -p '按Enter键继续...'").arg(command);
         } else {
-            program = "sh";
-            arguments << "-c" << command;
+            program = PlatformHelper::getShellProgram();
+            arguments = PlatformHelper::getShellArgs(command);
         }
     }
     
@@ -5042,14 +5046,16 @@ QString MainWindow::generateReliableSSHInstallCommand(const QString &username, c
     
     // 生成Python命令 - 使用SSH生成的公钥文件路径
     QString pythonCommand;
-    if (QSysInfo::productType() == "windows") {
+    if (PlatformHelper::isWindows()) {
         // Windows下使用python，使用原生路径分隔符
         // 注意：不在这里添加引号，让executeSSHWithSshpass函数中的cmd处理路径转义
-        pythonCommand = QString("python install_ssh_key.py --host %1 --port %2 --user %3 --key-file %4")
+        pythonCommand = QString("%1 install_ssh_key.py --host %2 --port %3 --user %4 --key-file %5")
+                       .arg(PlatformHelper::getPythonInterpreter())
                        .arg(ip).arg(port).arg(username).arg(QDir::toNativeSeparators(pubKeyPath));
     } else {
         // Linux/macOS下使用python3
-        pythonCommand = QString("python3 install_ssh_key.py --host %1 --port %2 --user %3 --key-file \"%4\"")
+        pythonCommand = QString("%1 install_ssh_key.py --host %2 --port %3 --user %4 --key-file \"%5\"")
+                       .arg(PlatformHelper::getPythonInterpreter())
                        .arg(ip).arg(port).arg(username).arg(pubKeyPath);
     }
     
@@ -5284,7 +5290,7 @@ void MainWindow::executeSSHWithSshpass(const QString &password)
     QString program;
     QStringList arguments;
     
-    if (QSysInfo::productType() == "windows") {
+    if (PlatformHelper::isWindows()) {
         // Windows下启动新的cmd窗口并自动执行命令
         program = "cmd";
         
@@ -5352,8 +5358,8 @@ void MainWindow::executeSSHWithSshpass(const QString &password)
         }
     } else {
         // Linux/macOS下使用sh执行
-        program = "sh";
-        arguments << "-c" << finalCommand;
+        program = PlatformHelper::getShellProgram();
+        arguments = PlatformHelper::getShellArgs(finalCommand);
     }
     
     // 设置工作目录为程序目录（确保能找到install_ssh_key.py和批处理文件）
@@ -5371,9 +5377,8 @@ void MainWindow::executeSSHWithSshpass(const QString &password)
     // 启动进程
     builtinCommandProcess->start(program, arguments);
     
-    // 启动进程
     if (builtinCommandProcess->waitForStarted(3000)) {
-        if (QSysInfo::productType() == "windows") {
+        if (PlatformHelper::isWindows()) {
             builtinCommandOutputEdit->append("<span style='color: #00b894;'>[系统] CMD窗口已启动，SSH公钥安装正在独立窗口中执行...</span>");
             builtinCommandOutputEdit->append("<span style='color: #74b9ff;'>[说明] 安装过程将在弹出的CMD窗口中显示，完成后窗口会自动关闭</span>");
             
@@ -5396,7 +5401,7 @@ void MainWindow::executeSSHWithSshpass(const QString &password)
             });
         }
     } else {
-        if (QSysInfo::productType() == "windows") {
+        if (PlatformHelper::isWindows()) {
             builtinCommandOutputEdit->append("<span style='color: #ff6b6b;'>[错误] 无法启动CMD窗口</span>");
         } else {
             builtinCommandOutputEdit->append("<span style='color: #ff6b6b;'>[错误] 无法启动Python脚本</span>");
@@ -5481,12 +5486,12 @@ void MainWindow::executeDirectSSHCommand(const QString &password)
     QString program;
     QStringList arguments;
     
-    if (QSysInfo::productType() == "windows") {
+    if (PlatformHelper::isWindows()) {
         program = "cmd";
         arguments << "/c" << pendingSSHCommand;
     } else {
-        program = "sh";
-        arguments << "-c" << pendingSSHCommand;
+        program = PlatformHelper::getShellProgram();
+        arguments = PlatformHelper::getShellArgs(pendingSSHCommand);
     }
     
     builtinCommandProcess->start(program, arguments);
@@ -5790,7 +5795,7 @@ void MainWindow::executeSSHWithDirectPassword(const QString &command, const QStr
     QString program;
     QStringList arguments;
     
-    if (QSysInfo::productType() == "windows") {
+    if (PlatformHelper::isWindows()) {
         // Windows下启动新的cmd窗口并自动执行命令
         program = "cmd";
         
@@ -5858,8 +5863,8 @@ void MainWindow::executeSSHWithDirectPassword(const QString &command, const QStr
         }
     } else {
         // Linux/macOS下使用sh执行
-        program = "sh";
-        arguments << "-c" << finalCommand;
+        program = PlatformHelper::getShellProgram();
+        arguments = PlatformHelper::getShellArgs(finalCommand);
     }
     
     // 设置工作目录为程序目录（确保能找到install_ssh_key.py和批处理文件）
@@ -5871,7 +5876,7 @@ void MainWindow::executeSSHWithDirectPassword(const QString &command, const QStr
     
     // 启动进程
     if (builtinCommandProcess->waitForStarted(3000)) {
-        if (QSysInfo::productType() == "windows") {
+        if (PlatformHelper::isWindows()) {
             builtinCommandOutputEdit->append("<span style='color: #00b894;'>[系统] CMD窗口已启动，SSH公钥安装正在独立窗口中执行...</span>");
             builtinCommandOutputEdit->append("<span style='color: #74b9ff;'>[说明] 安装过程将在弹出的CMD窗口中显示，完成后窗口会自动关闭</span>");
             
@@ -5894,7 +5899,7 @@ void MainWindow::executeSSHWithDirectPassword(const QString &command, const QStr
             });
         }
     } else {
-        if (QSysInfo::productType() == "windows") {
+        if (PlatformHelper::isWindows()) {
             builtinCommandOutputEdit->append("<span style='color: #ff6b6b;'>[错误] 无法启动CMD窗口</span>");
         } else {
             builtinCommandOutputEdit->append("<span style='color: #ff6b6b;'>[错误] 无法启动Python脚本</span>");
