@@ -76,7 +76,8 @@ private slots:
     void onVerifyFileFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void onShowMachineCode();
     void onUpgradeQtSoftware();
-    void onUpgrade7evFirmware();
+    void onUpgrade7evEmmc();
+    void onUpgrade7evSd();
     void onUpgradeKu5p();
     void onExecuteCustomCommand();
     void onClearCommandOutput();
@@ -131,9 +132,9 @@ private:
     void executeRemoteCommand(const QString &command, const QString &workingDir = QString());
     void executeCustomRemoteCommand(const QString &command);
     void execute7evRemoteCommand(const QString &command);
-    void executePreCheck7ev();
+    void executePreCheck7ev(const QString &devicePath, const QString &mountPath);
     void executePreCheck7evCommand(const QString &command);
-    void executeActual7evUpgrade();
+    void executeActual7evUpgrade(const QString &devicePath, const QString &mountPath);
     void executeKu5pUpgrade();
     void executeKu5pRemoteCommand(const QString &command);
     
@@ -203,7 +204,8 @@ private:
     QPushButton *uploadButton;
     QPushButton *clearLogButton;
     QPushButton *upgradeQtButton;
-    QPushButton *upgrade7evButton;
+    QPushButton *upgrade7evEmmcButton;
+    QPushButton *upgrade7evSdButton;
     QPushButton *upgradeKu5pButton;
     QLabel *statusLabel;
     QProgressBar *transferProgressBar;
@@ -292,6 +294,8 @@ private:
     int logRetentionDays;
     QString qtExtractPath;
     QString sevEvExtractPath;
+    QString currentDevicePath;  // 当前升级使用的设备路径
+    QString currentMountPath;   // 当前升级使用的挂载路径
     
     // 应用设置管理
     void loadApplicationSettings();

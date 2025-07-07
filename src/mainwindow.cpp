@@ -389,12 +389,12 @@ void MainWindow::setupUI()
     upgradeQtButton = new QPushButton("升级qt软件", this);
     upgradeQtButton->setObjectName("upgradeQtButton");
     
-    upgrade7evButton = new QPushButton("7ev固件升级", this);
-    upgrade7evButton->setObjectName("upgrade7evButton");
+    upgrade7evEmmcButton = new QPushButton("7ev-EMMC升级", this);
+    upgrade7evEmmcButton->setObjectName("upgrade7evEmmcButton");
     
-    // 设置7ev固件升级按钮的红色样式
-    upgrade7evButton->setStyleSheet(
-        "QPushButton#upgrade7evButton {"
+    // 设置7ev EMMC升级按钮的红色样式
+    upgrade7evEmmcButton->setStyleSheet(
+        "QPushButton#upgrade7evEmmcButton {"
         "    background-color: #e74c3c;"
         "    color: white;"
         "    border: 2px solid #c0392b;"
@@ -402,15 +402,43 @@ void MainWindow::setupUI()
         "    font-weight: bold;"
         "    padding: 8px 16px;"
         "}"
-        "QPushButton#upgrade7evButton:hover {"
+        "QPushButton#upgrade7evEmmcButton:hover {"
         "    background-color: #c0392b;"
         "    border-color: #a93226;"
         "}"
-        "QPushButton#upgrade7evButton:pressed {"
+        "QPushButton#upgrade7evEmmcButton:pressed {"
         "    background-color: #a93226;"
         "    border-color: #922b21;"
         "}"
-        "QPushButton#upgrade7evButton:disabled {"
+        "QPushButton#upgrade7evEmmcButton:disabled {"
+        "    background-color: #bdc3c7;"
+        "    color: #7f8c8d;"
+        "    border-color: #95a5a6;"
+        "}"
+    );
+
+    upgrade7evSdButton = new QPushButton("7ev-SD卡升级", this);
+    upgrade7evSdButton->setObjectName("upgrade7evSdButton");
+    
+    // 设置7ev SD卡升级按钮的紫色样式
+    upgrade7evSdButton->setStyleSheet(
+        "QPushButton#upgrade7evSdButton {"
+        "    background-color: #9b59b6;"
+        "    color: white;"
+        "    border: 2px solid #8e44ad;"
+        "    border-radius: 6px;"
+        "    font-weight: bold;"
+        "    padding: 8px 16px;"
+        "}"
+        "QPushButton#upgrade7evSdButton:hover {"
+        "    background-color: #8e44ad;"
+        "    border-color: #7d3c98;"
+        "}"
+        "QPushButton#upgrade7evSdButton:pressed {"
+        "    background-color: #7d3c98;"
+        "    border-color: #6c3483;"
+        "}"
+        "QPushButton#upgrade7evSdButton:disabled {"
         "    background-color: #bdc3c7;"
         "    color: #7f8c8d;"
         "    border-color: #95a5a6;"
@@ -450,14 +478,16 @@ void MainWindow::setupUI()
     cancelButton->setMinimumWidth(100);
     clearLogButton->setMinimumWidth(100);
     upgradeQtButton->setMinimumWidth(100);
-    upgrade7evButton->setMinimumWidth(100);
+    upgrade7evEmmcButton->setMinimumWidth(120);
+    upgrade7evSdButton->setMinimumWidth(120);
     upgradeKu5pButton->setMinimumWidth(100);
     
     uploadButtonLayout->addWidget(uploadButton);
     uploadButtonLayout->addWidget(cancelButton);
     uploadButtonLayout->addWidget(clearLogButton);
     uploadButtonLayout->addWidget(upgradeQtButton);
-    uploadButtonLayout->addWidget(upgrade7evButton);
+    uploadButtonLayout->addWidget(upgrade7evEmmcButton);
+    uploadButtonLayout->addWidget(upgrade7evSdButton);
     uploadButtonLayout->addWidget(upgradeKu5pButton);
     uploadButtonLayout->addStretch(); // 添加弹性空间，使按钮左对齐
     
@@ -745,7 +775,8 @@ void MainWindow::connectSignals()
     connect(clearLogButton, &QPushButton::clicked, this, &MainWindow::onClearLog);
     connect(testConnectionButton, &QPushButton::clicked, this, &MainWindow::onTestConnection);
     connect(upgradeQtButton, &QPushButton::clicked, this, &MainWindow::onUpgradeQtSoftware);
-    connect(upgrade7evButton, &QPushButton::clicked, this, &MainWindow::onUpgrade7evFirmware);
+    connect(upgrade7evEmmcButton, &QPushButton::clicked, this, &MainWindow::onUpgrade7evEmmc);
+    connect(upgrade7evSdButton, &QPushButton::clicked, this, &MainWindow::onUpgrade7evSd);
     connect(upgradeKu5pButton, &QPushButton::clicked, this, &MainWindow::onUpgradeKu5p);
     connect(executeCommandButton, &QPushButton::clicked, this, &MainWindow::onExecuteCustomCommand);
     connect(clearOutputButton, &QPushButton::clicked, this, &MainWindow::onClearCommandOutput);
@@ -982,7 +1013,8 @@ void MainWindow::onUploadFinished(int exitCode, QProcess::ExitStatus exitStatus)
     progressTimer->stop();
     uploadButton->setEnabled(true);
     upgradeQtButton->setEnabled(true);
-    upgrade7evButton->setEnabled(true);
+    upgrade7evEmmcButton->setEnabled(true);
+    upgrade7evSdButton->setEnabled(true);
     upgradeKu5pButton->setEnabled(true);
     cancelButton->setVisible(false);
     transferProgressBar->setVisible(false);  // 隐藏传输进度条
@@ -1077,7 +1109,8 @@ void MainWindow::onCancelUpload()
         statusLabel->setText("上传已取消");
         uploadButton->setEnabled(true);
         upgradeQtButton->setEnabled(true);
-        upgrade7evButton->setEnabled(true);
+        upgrade7evEmmcButton->setEnabled(true);
+        upgrade7evSdButton->setEnabled(true);
         upgradeKu5pButton->setEnabled(true);
         cancelButton->setVisible(false);
         transferProgressBar->setVisible(false);  // 隐藏传输进度条
@@ -1102,7 +1135,8 @@ void MainWindow::onUploadTimeout()
         statusLabel->setText("上传超时");
         uploadButton->setEnabled(true);
         upgradeQtButton->setEnabled(true);
-        upgrade7evButton->setEnabled(true);
+        upgrade7evEmmcButton->setEnabled(true);
+        upgrade7evSdButton->setEnabled(true);
         upgradeKu5pButton->setEnabled(true);
         cancelButton->setVisible(false);
         transferProgressBar->setVisible(false);  // 隐藏传输进度条
@@ -1389,7 +1423,8 @@ void MainWindow::startUpload()
     
     uploadButton->setEnabled(false);
     upgradeQtButton->setEnabled(false);
-    upgrade7evButton->setEnabled(false);
+    upgrade7evEmmcButton->setEnabled(false);
+    upgrade7evSdButton->setEnabled(false);
     upgradeKu5pButton->setEnabled(false);
     cancelButton->setVisible(true);
     statusLabel->setText("正在连接服务器...");
@@ -1784,7 +1819,8 @@ void MainWindow::onVerifyFileFinished(int exitCode, QProcess::ExitStatus exitSta
     progressTimer->stop();
     uploadButton->setEnabled(true);
     upgradeQtButton->setEnabled(true);
-    upgrade7evButton->setEnabled(true);
+    upgrade7evEmmcButton->setEnabled(true);
+    upgrade7evSdButton->setEnabled(true);
     upgradeKu5pButton->setEnabled(true);
     cancelButton->setVisible(false);
     transferProgressBar->setVisible(false);  // 隐藏传输进度条
@@ -2019,7 +2055,7 @@ void MainWindow::onUpgradeQtSoftware()
     executeRemoteCommand(qtCommand, sourceDir.trimmed());
 }
 
-void MainWindow::onUpgrade7evFirmware()
+void MainWindow::onUpgrade7evEmmc()
 {
     if (!validateSettings()) {
         return;
@@ -2027,7 +2063,7 @@ void MainWindow::onUpgrade7evFirmware()
     
     // 检查是否有进程正在运行
     if (uploadProcess && uploadProcess->state() != QProcess::NotRunning) {
-        QMessageBox::warning(this, "操作进行中", "请等待当前操作完成后再执行7ev固件升级操作！");
+        QMessageBox::warning(this, "操作进行中", "请等待当前操作完成后再执行7ev EMMC升级操作！");
         return;
     }
     
@@ -2052,52 +2088,132 @@ void MainWindow::onUpgrade7evFirmware()
         sourceDir += '/';
     }
     QString sourceFile = sourceDir + "boots.tar.gz";
+    QString devicePath = "/dev/mmcblk0p1";
+    QString mountPath = "/mnt/mmcblk0p1";
     
     // 确认对话框
-    int ret = QMessageBox::question(this, "确认7ev固件升级", 
-        QString("即将在远程服务器上执行7ev固件升级操作：\n\n"
+    int ret = QMessageBox::question(this, "确认7ev EMMC升级", 
+        QString("即将在远程服务器上执行7ev EMMC固件升级操作：\n\n"
         "执行步骤：\n"
         "1. 检查并处理已有挂载状态\n"
-        "2. 挂载 /dev/mmcblk0p1 到 %1\n"
-        "3. 检查 %2 文件是否存在\n"
-        "4. 如果存在，解压到 %1（忽略权限问题）\n"
+        "2. 挂载 %1 到 %2\n"
+        "3. 检查 %3 文件是否存在\n"
+        "4. 如果存在，解压到 %2（忽略权限问题）\n"
         "5. 验证解压结果\n"
         "6. 执行 sync 同步数据到磁盘\n\n"
-        "注意：此操作将替换系统固件文件，请确认：\n"
+        "注意：此操作将替换EMMC固件文件，请确认：\n"
         "• 已备份重要数据\n"
         "• boots.tar.gz 文件完整有效\n"
         "• 升级过程中不要断电\n\n"
-        "是否继续执行7ev固件升级操作？").arg(sevEvExtractPath).arg(sourceFile),
+        "是否继续执行7ev EMMC升级操作？").arg(devicePath).arg(mountPath).arg(sourceFile),
         QMessageBox::Yes | QMessageBox::No,
         QMessageBox::No);
     
     if (ret != QMessageBox::Yes) {
-        logMessage("用户取消了7ev固件升级操作");
+        logMessage("用户取消了7ev EMMC升级操作");
         return;
     }
     
-    logMessage("开始执行7ev固件升级操作...");
+    logMessage("开始执行7ev EMMC升级操作...");
     logMessage("执行前检查：验证系统环境和文件完整性");
     logMessage("步骤1：检查并处理已有挂载状态");
-    logMessage("步骤2：挂载分区 /dev/mmcblk0p1 到 /mnt/mmcblk0p1");
+    logMessage(QString("步骤2：挂载分区 %1 到 %2").arg(devicePath).arg(mountPath));
     logMessage(QString("步骤3：检查固件文件 %1").arg(sourceFile));
     logMessage("步骤4：解压固件到目标分区");
     logMessage("步骤5：验证解压结果");
     logMessage("步骤6：同步数据到磁盘并卸载分区");
     
-    statusLabel->setText("正在执行7ev固件升级");
+    statusLabel->setText("正在执行7ev EMMC升级");
     transferProgressBar->setVisible(true);
     
     // 禁用所有操作按钮
     disableAllOperationButtons();
     
     // 先执行预检查
-    executePreCheck7ev();
+    executePreCheck7ev(devicePath, mountPath);
 }
 
-void MainWindow::executePreCheck7ev()
+void MainWindow::onUpgrade7evSd()
 {
-    logMessage("[预检查] 正在验证升级环境...");
+    if (!validateSettings()) {
+        return;
+    }
+    
+    // 检查是否有进程正在运行
+    if (uploadProcess && uploadProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "请等待当前操作完成后再执行7ev SD卡升级操作！");
+        return;
+    }
+    
+    if (remoteCommandProcess && remoteCommandProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "远程命令正在执行中，请稍等...");
+        return;
+    }
+    
+    if (preCheck7evProcess && preCheck7evProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "7ev固件升级预检查正在执行中，请稍等...");
+        return;
+    }
+    
+    if (upgrade7evProcess && upgrade7evProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "7ev固件升级正在执行中，请稍等...");
+        return;
+    }
+    
+    // 构建源文件路径
+    QString sourceDir = remoteDirectory.trimmed();
+    if (!sourceDir.endsWith('/')) {
+        sourceDir += '/';
+    }
+    QString sourceFile = sourceDir + "boots.tar.gz";
+    QString devicePath = "/dev/mmcblk1p1";
+    QString mountPath = "/mnt/mmcblk1p1";
+    
+    // 确认对话框
+    int ret = QMessageBox::question(this, "确认7ev SD卡升级", 
+        QString("即将在远程服务器上执行7ev SD卡固件升级操作：\n\n"
+        "执行步骤：\n"
+        "1. 检查并处理已有挂载状态\n"
+        "2. 挂载 %1 到 %2\n"
+        "3. 检查 %3 文件是否存在\n"
+        "4. 如果存在，解压到 %2（忽略权限问题）\n"
+        "5. 验证解压结果\n"
+        "6. 执行 sync 同步数据到磁盘\n\n"
+        "注意：此操作将替换SD卡固件文件，请确认：\n"
+        "• 已备份重要数据\n"
+        "• boots.tar.gz 文件完整有效\n"
+        "• 升级过程中不要断电\n\n"
+        "是否继续执行7ev SD卡升级操作？").arg(devicePath).arg(mountPath).arg(sourceFile),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
+    
+    if (ret != QMessageBox::Yes) {
+        logMessage("用户取消了7ev SD卡升级操作");
+        return;
+    }
+    
+    logMessage("开始执行7ev SD卡升级操作...");
+    logMessage("执行前检查：验证系统环境和文件完整性");
+    logMessage("步骤1：检查并处理已有挂载状态");
+    logMessage(QString("步骤2：挂载分区 %1 到 %2").arg(devicePath).arg(mountPath));
+    logMessage(QString("步骤3：检查固件文件 %1").arg(sourceFile));
+    logMessage("步骤4：解压固件到目标分区");
+    logMessage("步骤5：验证解压结果");
+    logMessage("步骤6：同步数据到磁盘并卸载分区");
+    
+    statusLabel->setText("正在执行7ev SD卡升级");
+    transferProgressBar->setVisible(true);
+    
+    // 禁用所有操作按钮
+    disableAllOperationButtons();
+    
+    // 先执行预检查
+    executePreCheck7ev(devicePath, mountPath);
+}
+
+void MainWindow::executePreCheck7ev(const QString &devicePath, const QString &mountPath)
+{
+    logMessage(QString("[预检查] 正在验证升级环境，设备: %1，挂载点: %2").arg(devicePath).arg(mountPath));
     
     // 构建源文件路径
     QString sourceDir = remoteDirectory.trimmed();
@@ -2109,8 +2225,8 @@ void MainWindow::executePreCheck7ev()
     // 构建预检查命令
     QString preCheckCommand = 
         "echo 'Pre-check: Verifying system environment...' && "
-        "echo 'Checking device /dev/mmcblk0p1...' && "
-        "ls -la /dev/mmcblk0p1 && "
+        "echo 'Checking device " + devicePath + "...' && "
+        "ls -la " + devicePath + " && "
         "echo 'Checking firmware directory...' && "
         "ls -la " + sourceDir + " && "
         "echo 'Checking firmware file...' && "
@@ -2128,6 +2244,10 @@ void MainWindow::executePreCheck7ev()
         "echo 'Checking available space...' && "
         "df -h " + sourceDir + " && "
         "echo 'Pre-check completed successfully'";
+    
+    // 保存当前升级参数供后续使用
+    currentDevicePath = devicePath;
+    currentMountPath = mountPath;
     
     executePreCheck7evCommand(preCheckCommand);
 }
@@ -2155,7 +2275,7 @@ void MainWindow::executePreCheck7evCommand(const QString &command)
             }
             
             // 预检查通过，执行正式升级
-            executeActual7evUpgrade();
+            executeActual7evUpgrade(currentDevicePath, currentMountPath);
         } else {
             QString error = preCheck7evProcess->readAllStandardError();
             QString output = preCheck7evProcess->readAllStandardOutput();
@@ -2247,9 +2367,10 @@ void MainWindow::executePreCheck7evCommand(const QString &command)
     }
 }
 
-void MainWindow::executeActual7evUpgrade()
+void MainWindow::executeActual7evUpgrade(const QString &devicePath, const QString &mountPath)
 {
-    logMessage("[正式升级] 预检查通过，开始执行7ev固件升级...");
+    logMessage(QString("[正式升级] 预检查通过，开始执行7ev固件升级，设备: %1，挂载点: %2")
+               .arg(devicePath).arg(mountPath));
     
     // 构建源文件路径
     QString sourceDir = remoteDirectory.trimmed();
@@ -2262,33 +2383,33 @@ void MainWindow::executeActual7evUpgrade()
     QString command = 
         QString("echo 'Step 1: Creating mount point...' && "
         "mkdir -p %1 && "                                               // 确保挂载点存在
-        "echo 'Step 2: Checking device /dev/mmcblk0p1...' && "
-        "ls -la /dev/mmcblk0p1 && "                                     // 检查设备是否存在
+        "echo 'Step 2: Checking device %2...' && "
+        "ls -la %2 && "                                                 // 检查设备是否存在
         "echo 'Step 3: Checking mount status...' && "
         "if mountpoint -q %1; then "                                   // 检查挂载点是否已挂载
         "  echo 'Mount point already in use, unmounting...'; "
         "  umount %1; "                                                 // 如果已挂载则卸载
         "fi && "
-        "if mount | grep -q /dev/mmcblk0p1; then "                     // 检查设备是否在其他地方被挂载
+        "if mount | grep -q %2; then "                                 // 检查设备是否在其他地方被挂载
         "  echo 'Device mounted elsewhere, unmounting...'; "
-        "  umount /dev/mmcblk0p1; "                                     // 卸载设备
+        "  umount %2; "                                                 // 卸载设备
         "fi && "
         "echo 'Step 4: Mounting partition...' && "
-        "mount /dev/mmcblk0p1 %1 && "                                  // 挂载分区
+        "mount %2 %1 && "                                              // 挂载分区
         "echo 'Mount successful, checking mount point...' && "
         "df -h %1 && "                                                  // 显示挂载信息
         "echo 'Step 5: Checking firmware file...' && "
-        "ls -la %2 && "                                                 // 列出目录内容
-        "if [ ! -f %3 ]; then "                                        // 检查文件是否存在
-        "  echo 'ERROR: boots.tar.gz not found in %2'; "
-        "  echo 'Directory contents:'; ls -la %2; "
+        "ls -la %3 && "                                                 // 列出目录内容
+        "if [ ! -f %4 ]; then "                                        // 检查文件是否存在
+        "  echo 'ERROR: boots.tar.gz not found in %3'; "
+        "  echo 'Directory contents:'; ls -la %3; "
         "  umount %1; "                                                 // 如果文件不存在，卸载并退出
         "  exit 1; "
         "fi && "
         "echo 'Found boots.tar.gz, file info:' && "
-        "ls -la %3 && "                                                 // 显示文件信息
+        "ls -la %4 && "                                                 // 显示文件信息
         "echo 'Step 6: Starting extraction...' && "
-        "tar -xzvf %3 -C %1 --no-same-owner --no-same-permissions && " // 解压到目标分区，忽略所有权和权限
+        "tar -xzvf %4 -C %1 --no-same-owner --no-same-permissions && " // 解压到目标分区，忽略所有权和权限
         "echo 'Step 7: Verifying extracted files...' && "
         "ls -la %1/ && "                                               // 显示解压后的文件
         "echo 'Step 8: Syncing data...' && "
@@ -2296,7 +2417,7 @@ void MainWindow::executeActual7evUpgrade()
         "echo 'Step 9: Unmounting partition...' && "
         "umount %1 && "                                                // 卸载分区
         "echo '7ev firmware upgrade completed successfully'")           // 完成提示
-        .arg(sevEvExtractPath).arg(sourceDir).arg(sourceFile);
+        .arg(mountPath).arg(devicePath).arg(sourceDir).arg(sourceFile);
     
     execute7evRemoteCommand(command);
 }
@@ -2346,13 +2467,13 @@ void MainWindow::execute7evRemoteCommand(const QString &command)
                 QString("7ev固件升级操作已成功完成！\n\n"
                 "完成的操作：\n"
                 "1. ✓ 检查并处理已有挂载状态\n"
-                "2. ✓ 挂载分区 /dev/mmcblk0p1 到 %1\n"
-                "3. ✓ 检查固件文件 %2\n"
+                "2. ✓ 挂载分区 %1 到 %2\n"
+                "3. ✓ 检查固件文件 %3\n"
                 "4. ✓ 解压固件到目标分区（忽略权限问题）\n"
                 "5. ✓ 验证解压结果\n"
                 "6. ✓ 同步数据到磁盘并卸载分区\n\n"
                 "固件升级详情请查看操作日志。\n"
-                "建议重启设备以应用新固件。").arg(sevEvExtractPath).arg(sourceFile));
+                "建议重启设备以应用新固件。").arg(currentDevicePath).arg(currentMountPath).arg(sourceFile));
         } else {
             QString error = upgrade7evProcess->readAllStandardError();
             QString output = upgrade7evProcess->readAllStandardOutput();
@@ -2380,11 +2501,11 @@ void MainWindow::execute7evRemoteCommand(const QString &command)
                 QMessageBox::critical(this, "固件文件不存在", 
                     QString("7ev固件升级失败！\n\n错误原因：%1\n\n解决方案：\n%2")
                     .arg(errorDetails).arg(solutionDetails));
-            } else if (output.contains("No such file or directory") && output.contains("/dev/mmcblk0p1")) {
-                logMessage("[错误] 7ev固件升级失败：设备 /dev/mmcblk0p1 不存在");
+            } else if (output.contains("No such file or directory") && output.contains(currentDevicePath)) {
+                logMessage(QString("[错误] 7ev固件升级失败：设备 %1 不存在").arg(currentDevicePath));
                 statusLabel->setText("存储设备不存在");
                 statusBar()->showMessage("存储设备不存在", 3000);
-                errorDetails = "设备 /dev/mmcblk0p1 不存在，可能是存储设备未连接或驱动问题";
+                errorDetails = QString("设备 %1 不存在，可能是存储设备未连接或驱动问题").arg(currentDevicePath);
                 solutionDetails = "1. 检查存储设备是否正确连接\n"
                                 "2. 确认设备路径是否正确\n"
                                 "3. 检查系统是否识别到存储设备\n"
@@ -2399,17 +2520,17 @@ void MainWindow::execute7evRemoteCommand(const QString &command)
                     logMessage("[错误] 7ev固件升级失败：设备正在使用中");
                     statusLabel->setText("设备使用中");
                     statusBar()->showMessage("设备使用中", 3000);
-                    errorDetails = "设备 /dev/mmcblk0p1 正在使用中，无法挂载";
-                    solutionDetails = "1. 设备可能已经被其他程序挂载\n"
+                    errorDetails = QString("设备 %1 正在使用中，无法挂载").arg(currentDevicePath);
+                    solutionDetails = QString("1. 设备可能已经被其他程序挂载\n"
                                     "2. 检查是否有其他升级操作正在进行\n"
-                                    "3. 尝试手动卸载：umount /dev/mmcblk0p1\n"
+                                    "3. 尝试手动卸载：umount %1\n"
                                     "4. 重启设备后重新尝试升级\n"
-                                    "5. 检查是否有程序正在访问该分区";
+                                    "5. 检查是否有程序正在访问该分区").arg(currentDevicePath);
                 } else {
                     logMessage("[错误] 7ev固件升级失败：分区挂载失败");
                     statusLabel->setText("分区挂载失败");
                     statusBar()->showMessage("分区挂载失败", 3000);
-                    errorDetails = "无法挂载分区 /dev/mmcblk0p1，可能是分区损坏或权限不足";
+                    errorDetails = QString("无法挂载分区 %1，可能是分区损坏或权限不足").arg(currentDevicePath);
                     solutionDetails = "1. 检查分区是否已经被挂载\n"
                                     "2. 确认当前用户是否有挂载权限\n"
                                     "3. 检查分区文件系统是否正常\n"
@@ -2485,11 +2606,12 @@ void MainWindow::execute7evRemoteCommand(const QString &command)
                            "请检查：\n"
                            "1. 服务器连接是否正常\n"
                            "2. boots.tar.gz 文件是否存在于 %2 目录\n"
-                           "3. 分区 /dev/mmcblk0p1 是否可用\n"
+                           "3. 分区 %3 是否可用\n"
                            "4. 目标目录权限是否足够\n"
                            "5. 网络连接是否稳定")
                     .arg(error.isEmpty() ? "命令执行失败" : error.trimmed())
-                    .arg(sourceDir));
+                    .arg(sourceDir)
+                    .arg(currentDevicePath));
             }
         }
         
@@ -3527,7 +3649,8 @@ void MainWindow::disableAllOperationButtons()
     testConnectionButton->setEnabled(false);
     selectFileButton->setEnabled(false);
     upgradeQtButton->setEnabled(false);
-    upgrade7evButton->setEnabled(false);
+    upgrade7evEmmcButton->setEnabled(false);
+    upgrade7evSdButton->setEnabled(false);
     upgradeKu5pButton->setEnabled(false);
     executeCommandButton->setEnabled(false);
     clearLogButton->setEnabled(false);
@@ -3559,7 +3682,8 @@ void MainWindow::enableAllOperationButtons()
     testConnectionButton->setEnabled(true);
     selectFileButton->setEnabled(true);
     upgradeQtButton->setEnabled(true);
-    upgrade7evButton->setEnabled(true);
+    upgrade7evEmmcButton->setEnabled(true);
+    upgrade7evSdButton->setEnabled(true);
     upgradeKu5pButton->setEnabled(true);
     executeCommandButton->setEnabled(true);
     clearLogButton->setEnabled(true);
@@ -5938,7 +6062,7 @@ void MainWindow::onEnableSSHKey()
     }
     
     // 验证密码（这里设置一个特定的密码，您可以根据需要修改）
-    const QString correctPassword = "ChencyUe2025";  // 特定密码
+    const QString correctPassword = "Ue2025";  // 特定密码
     
     if (password == correctPassword) {
         // 密码正确，启用SSH密钥功能
