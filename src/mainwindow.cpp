@@ -30,7 +30,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), uploadProcess(nullptr), testProcess(nullptr), verifyProcess(nullptr),
               remoteCommandProcess(nullptr), customCommandProcess(nullptr), preCheck7evProcess(nullptr), upgrade7evProcess(nullptr),
         upgradeKu5pProcess(nullptr), sshKeyGenProcess(nullptr), builtinCommandProcess(nullptr), progressTimer(nullptr), timeoutTimer(nullptr), keyFile(nullptr),
-        settingsDialog(nullptr), remoteDirectory("/media/sata/ue_data/"), waitingForPassword(false), isGeneratingAndDeploying(false), sshKeyEnabled(false)
+        settingsDialog(nullptr), remoteDirectory("/media/sata/ue_data/"), waitingForPassword(false), isGeneratingAndDeploying(false), sshKeyEnabled(false), isQtUpgradeFile(false), is7evUpgradeFile(false), is7evSdUpgradeFile(false), isKu5pUpgradeFile(false)
 {
     // 设置应用程序信息
     QApplication::setOrganizationName("680SoftwareUpdate");
@@ -1030,6 +1030,12 @@ void MainWindow::onUploadFinished(int exitCode, QProcess::ExitStatus exitStatus)
             logMessage(QString("SCP输出: %1").arg(output.trimmed()));
         }
         
+        // 如果是Qt升级包，设置标志位
+        QFileInfo fileInfo(selectedFilePath);
+        if (fileInfo.fileName() == "qt_update.tar.gz") {
+            isQtUpgradeFile = true;
+        }
+        
         // 开始MD5校验
         startFileVerification();
     } else {
@@ -1823,7 +1829,7 @@ void MainWindow::onVerifyFileFinished(int exitCode, QProcess::ExitStatus exitSta
     upgrade7evSdButton->setEnabled(true);
     upgradeKu5pButton->setEnabled(true);
     cancelButton->setVisible(false);
-    transferProgressBar->setVisible(false);  // 隐藏传输进度条
+    //transferProgressBar->setVisible(false);  // 隐藏传输进度条
     
     if (verifyProcess) {
         if (exitStatus == QProcess::NormalExit && exitCode == 0) {
@@ -1844,15 +1850,158 @@ void MainWindow::onVerifyFileFinished(int exitCode, QProcess::ExitStatus exitSta
                         statusLabel->setText("上传并校验成功");
                         statusBar()->showMessage("上传并校验成功", 3000);
                         
-                        QMessageBox::information(this, "上传成功", 
-                            QString("文件 %1 已成功上传到服务器并通过MD5校验\n"
-                                   "目标路径: %2\n"
-                                   "本地MD5: %3\n"
-                                   "远程MD5: %4")
-                            .arg(QFileInfo(selectedFilePath).fileName())
-                            .arg(remoteDirectory)
-                            .arg(localMD5Lower)
-                            .arg(remoteMD5));
+                        // 如果是Qt升级包，执行升级操作
+                        if (isQtUpgradeFile) {
+                            logMessage("开始执行Qt软件升级...");
+                            statusLabel->setText("正在升级Qt软件");
+                            
+                            // 显示进度条
+                            transferProgressBar->setVisible(true);
+                            transferProgressBar->setValue(0);
+                            transferProgressBar->setFormat("Qt软件升级中 %p%");
+                            
+                            // 构建源文件路径
+                            QString sourceDir = remoteDirectory.trimmed();
+                            if (!sourceDir.endsWith('/')) {
+                                sourceDir += '/';
+                            }
+                            
+                            // 构建升级命令，使用pv命令显示进度
+                            QString qtCommand = QString(
+                                "if ! command -v pv >/dev/null 2>&1; then "
+                                "  echo '正在安装pv工具...' && "
+                                "  if command -v apt-get >/dev/null 2>&1; then "
+                                "    apt-get update && apt-get install -y pv || true; "
+                                "  elif command -v yum >/dev/null 2>&1; then "
+                                "    yum install -y pv || true; "
+                                "  fi; "
+                                "fi && "
+                                "echo '计算文件大小...' && "
+                                "TOTAL_SIZE=$(gzip -l qt_update.tar.gz | awk 'NR==2 {print $2}') && "
+                                "if command -v pv >/dev/null 2>&1; then "
+                                "  pv -n qt_update.tar.gz | tar -xzf - -C %1; "
+                                "else "
+                                "  tar -xzvf qt_update.tar.gz -C %1; "
+                                "fi && "
+                                "echo '同步数据...' && sync && "
+                                "echo 'Qt软件升级完成'").arg(qtExtractPath);
+                            
+                            // 执行远程命令
+                            executeRemoteCommand(qtCommand, sourceDir.trimmed());
+                            
+                            // 重置标志位
+                            isQtUpgradeFile = false;
+                        } 
+                        // 如果是7ev EMMC升级包，执行升级操作
+                        else if (is7evUpgradeFile) {
+                            logMessage("开始执行7ev EMMC固件升级...");
+                            statusLabel->setText("正在执行7ev EMMC固件升级");
+                            
+                            // 显示进度条
+                            transferProgressBar->setVisible(true);
+                            transferProgressBar->setValue(0);
+                            transferProgressBar->setFormat("7ev EMMC升级中 %p%");
+                            
+                            // 构建源文件路径
+                            QString sourceDir = remoteDirectory.trimmed();
+                            if (!sourceDir.endsWith('/')) {
+                                sourceDir += '/';
+                            }
+                            
+                            QString devicePath = "/dev/mmcblk0p1";
+                            QString mountPath = "/mnt/mmcblk0p1";
+                            
+                            // 执行预检查
+                            executePreCheck7ev(devicePath, mountPath);
+                            
+                            // 重置标志位
+                            is7evUpgradeFile = false;
+                        }
+                        // 如果是7ev SD卡升级包，执行升级操作
+                        else if (is7evSdUpgradeFile) {
+                            logMessage("开始执行7ev SD卡固件升级...");
+                            statusLabel->setText("正在执行7ev SD卡固件升级");
+                            
+                            // 显示进度条
+                            transferProgressBar->setVisible(true);
+                            transferProgressBar->setValue(0);
+                            transferProgressBar->setFormat("7ev SD卡升级中 %p%");
+                            
+                            // 构建源文件路径
+                            QString sourceDir = remoteDirectory.trimmed();
+                            if (!sourceDir.endsWith('/')) {
+                                sourceDir += '/';
+                            }
+                            
+                            QString devicePath = "/dev/mmcblk1p1";
+                            QString mountPath = "/mnt/mmcblk1p1";
+                            
+                            // 执行预检查
+                            executePreCheck7ev(devicePath, mountPath);
+                            
+                            // 重置标志位
+                            is7evSdUpgradeFile = false;
+                        }
+                        // 如果是KU5P升级包，执行升级操作
+                        else if (isKu5pUpgradeFile) {
+                            logMessage("开始执行KU5P固件升级...");
+                            statusLabel->setText("正在执行KU5P固件升级");
+                            
+                            // 构建源文件路径
+                            QString sourceDir = remoteDirectory.trimmed();
+                            if (!sourceDir.endsWith('/')) {
+                                sourceDir += '/';
+                            }
+                            
+                            QString devicePath = "/dev/mmcblk0p1";
+                            QString mountPath = "/mnt/mmcblk0p1";
+                            
+                            // 构建升级命令
+                            QString command = QString(
+                                "cd %1 && "
+                                "echo '开始KU5P升级...' && "
+                                "if [ ! -f ku5p_package.tar.gz ]; then "
+                                "  echo 'ku5p_package.tar.gz not found'; "
+                                "  exit 1; "
+                                "fi && "
+                                "echo '创建升级目录...' && "
+                                "mkdir -p updatepackage && "
+                                "cd updatepackage && "
+                                "echo '解压升级包...' && "
+                                "tar -xzvf ../ku5p_package.tar.gz && "
+                                "if [ ! -f ku5pupgrade ]; then "
+                                "  echo 'ku5pupgrade script not found'; "
+                                "  exit 1; "
+                                "fi && "
+                                "if [ ! -f ku5p_package.bit ]; then "
+                                "  echo 'ku5p_package.bit not found'; "
+                                "  exit 1; "
+                                "fi && "
+                                "echo '执行升级程序...' && "
+                                "chmod +x ku5pupgrade && "
+                                "./ku5pupgrade ku5p_package.bit && "
+                                "echo '同步数据...' && "
+                                "sync && "
+                                "echo 'KU5P固件升级完成'")
+                                .arg(sourceDir);
+                            
+                            // 执行升级命令
+                            executeKu5pRemoteCommand(command);
+                            
+                            // 重置标志位
+                            isKu5pUpgradeFile = false;
+                        }
+                        else {
+                            QMessageBox::information(this, "上传成功", 
+                                QString("文件 %1 已成功上传到服务器并通过MD5校验\n"
+                                       "目标路径: %2\n"
+                                       "本地MD5: %3\n"
+                                       "远程MD5: %4")
+                                .arg(QFileInfo(selectedFilePath).fileName())
+                                .arg(remoteDirectory)
+                                .arg(localMD5Lower)
+                                .arg(remoteMD5));
+                        }
                     } else {
                         logMessage("[错误] MD5校验失败！文件可能损坏或不完整");
                         statusLabel->setText("MD5校验失败");
@@ -2015,6 +2164,39 @@ void MainWindow::onUpgradeQtSoftware()
         QMessageBox::warning(this, "操作进行中", "远程命令正在执行中，请稍等...");
         return;
     }
+
+    // 选择要上传的文件
+    QString filePath = QFileDialog::getOpenFileName(this,
+        "选择Qt升级包",
+        QDir::currentPath(),
+        "Qt升级包 (qt_update.tar.gz);;所有文件 (*)");
+
+    if (filePath.isEmpty()) {
+        logMessage("用户取消了文件选择");
+        return;
+    }
+
+    // 检查文件名是否正确
+    QFileInfo fileInfo(filePath);
+    if (fileInfo.fileName() != "qt_update.tar.gz") {
+        QMessageBox::warning(this, "文件错误", 
+            "请选择正确的Qt升级包文件：qt_update.tar.gz");
+        logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
+        return;
+    }
+
+    // 检查文件是否存在且可读
+    QFile file(filePath);
+    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "文件错误", 
+            "无法读取选择的文件，请确保文件存在且有读取权限。");
+        logMessage("无法读取文件：" + filePath);
+        return;
+    }
+    file.close();
+
+    // 保存选择的文件路径
+    selectedFilePath = filePath;
     
     // 构建源文件路径
     QString sourceDir = remoteDirectory.trimmed();
@@ -2026,14 +2208,18 @@ void MainWindow::onUpgradeQtSoftware()
     // 确认对话框
     int ret = QMessageBox::question(this, "确认升级", 
         QString("即将在远程服务器上执行qt软件升级操作：\n\n"
-        "工作目录：%1\n"
-        "执行命令：tar -xzvf qt_update.tar.gz -C %2 && sync\n\n"
+        "1. 上传文件：%1\n"
+        "2. 工作目录：%2\n"
+        "3. 执行命令：tar -xzvf qt_update.tar.gz -C %3 && sync\n\n"
         "说明：\n"
-        "1. 从 %3 解压qt_update.tar.gz到%2目录\n"
+        "1. 从 %4 解压qt_update.tar.gz到%3目录\n"
         "2. 执行sync命令同步数据到磁盘\n\n"
         "注意：此操作将解压并覆盖目标目录中的文件，请确认无误后继续。\n\n"
         "是否继续执行升级操作？")
-        .arg(sourceDir).arg(qtExtractPath).arg(sourceFile),
+        .arg(fileInfo.fileName())
+        .arg(sourceDir)
+        .arg(qtExtractPath)
+        .arg(sourceFile),
         QMessageBox::Yes | QMessageBox::No,
         QMessageBox::No);
     
@@ -2043,16 +2229,18 @@ void MainWindow::onUpgradeQtSoftware()
     }
     
     logMessage("开始执行qt软件升级操作...");
-    logMessage("操作步骤：1. 解压qt软件包  2. 同步数据到磁盘");
-    statusLabel->setText("正在升级qt软件");
+    logMessage("操作步骤：1. 上传升级包  2. 解压qt软件包  3. 同步数据到磁盘");
+    statusLabel->setText("正在上传Qt升级包");
     transferProgressBar->setVisible(true);
     
     // 禁用所有操作按钮
     disableAllOperationButtons();
     
-    // 执行远程命令（升级后自动同步磁盘）
-    QString qtCommand = QString("tar -xzvf qt_update.tar.gz -C %1 && sync").arg(qtExtractPath);
-    executeRemoteCommand(qtCommand, sourceDir.trimmed());
+    // 设置标志位
+    isQtUpgradeFile = true;
+    
+    // 开始上传文件
+    startUpload();
 }
 
 void MainWindow::onUpgrade7evEmmc()
@@ -2081,6 +2269,39 @@ void MainWindow::onUpgrade7evEmmc()
         QMessageBox::warning(this, "操作进行中", "7ev固件升级正在执行中，请稍等...");
         return;
     }
+
+    // 选择要上传的文件
+    QString filePath = QFileDialog::getOpenFileName(this,
+        "选择7ev固件升级包",
+        QDir::currentPath(),
+        "7ev固件升级包 (boots.tar.gz);;所有文件 (*)");
+
+    if (filePath.isEmpty()) {
+        logMessage("用户取消了文件选择");
+        return;
+    }
+
+    // 检查文件名是否正确
+    QFileInfo fileInfo(filePath);
+    if (fileInfo.fileName() != "boots.tar.gz") {
+        QMessageBox::warning(this, "文件错误", 
+            "请选择正确的7ev固件升级包文件：boots.tar.gz");
+        logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
+        return;
+    }
+
+    // 检查文件是否存在且可读
+    QFile file(filePath);
+    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "文件错误", 
+            "无法读取选择的文件，请确保文件存在且有读取权限。");
+        logMessage("无法读取文件：" + filePath);
+        return;
+    }
+    file.close();
+
+    // 保存选择的文件路径
+    selectedFilePath = filePath;
     
     // 构建源文件路径
     QString sourceDir = remoteDirectory.trimmed();
@@ -2095,17 +2316,22 @@ void MainWindow::onUpgrade7evEmmc()
     int ret = QMessageBox::question(this, "确认7ev EMMC升级", 
         QString("即将在远程服务器上执行7ev EMMC固件升级操作：\n\n"
         "执行步骤：\n"
-        "1. 检查并处理已有挂载状态\n"
-        "2. 挂载 %1 到 %2\n"
-        "3. 检查 %3 文件是否存在\n"
-        "4. 如果存在，解压到 %2（忽略权限问题）\n"
-        "5. 验证解压结果\n"
-        "6. 执行 sync 同步数据到磁盘\n\n"
+        "1. 上传固件文件：%1\n"
+        "2. 检查并处理已有挂载状态\n"
+        "3. 挂载 %2 到 %3\n"
+        "4. 检查 %4 文件是否存在\n"
+        "5. 如果存在，解压到 %3（忽略权限问题）\n"
+        "6. 验证解压结果\n"
+        "7. 执行 sync 同步数据到磁盘\n\n"
         "注意：此操作将替换EMMC固件文件，请确认：\n"
         "• 已备份重要数据\n"
         "• boots.tar.gz 文件完整有效\n"
         "• 升级过程中不要断电\n\n"
-        "是否继续执行7ev EMMC升级操作？").arg(devicePath).arg(mountPath).arg(sourceFile),
+        "是否继续执行7ev EMMC升级操作？")
+        .arg(fileInfo.fileName())
+        .arg(devicePath)
+        .arg(mountPath)
+        .arg(sourceFile),
         QMessageBox::Yes | QMessageBox::No,
         QMessageBox::No);
     
@@ -2115,22 +2341,18 @@ void MainWindow::onUpgrade7evEmmc()
     }
     
     logMessage("开始执行7ev EMMC升级操作...");
-    logMessage("执行前检查：验证系统环境和文件完整性");
-    logMessage("步骤1：检查并处理已有挂载状态");
-    logMessage(QString("步骤2：挂载分区 %1 到 %2").arg(devicePath).arg(mountPath));
-    logMessage(QString("步骤3：检查固件文件 %1").arg(sourceFile));
-    logMessage("步骤4：解压固件到目标分区");
-    logMessage("步骤5：验证解压结果");
-    logMessage("步骤6：同步数据到磁盘并卸载分区");
-    
-    statusLabel->setText("正在执行7ev EMMC升级");
+    logMessage("操作步骤：1. 上传升级包  2. 执行升级操作");
+    statusLabel->setText("正在上传7ev固件升级包");
     transferProgressBar->setVisible(true);
     
     // 禁用所有操作按钮
     disableAllOperationButtons();
+
+    // 设置标志位
+    is7evUpgradeFile = true;
     
-    // 先执行预检查
-    executePreCheck7ev(devicePath, mountPath);
+    // 开始上传文件
+    startUpload();
 }
 
 void MainWindow::onUpgrade7evSd()
@@ -2159,6 +2381,39 @@ void MainWindow::onUpgrade7evSd()
         QMessageBox::warning(this, "操作进行中", "7ev固件升级正在执行中，请稍等...");
         return;
     }
+
+    // 选择要上传的文件
+    QString filePath = QFileDialog::getOpenFileName(this,
+        "选择7ev固件升级包",
+        QDir::currentPath(),
+        "7ev固件升级包 (boots.tar.gz);;所有文件 (*)");
+
+    if (filePath.isEmpty()) {
+        logMessage("用户取消了文件选择");
+        return;
+    }
+
+    // 检查文件名是否正确
+    QFileInfo fileInfo(filePath);
+    if (fileInfo.fileName() != "boots.tar.gz") {
+        QMessageBox::warning(this, "文件错误", 
+            "请选择正确的7ev固件升级包文件：boots.tar.gz");
+        logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
+        return;
+    }
+
+    // 检查文件是否存在且可读
+    QFile file(filePath);
+    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "文件错误", 
+            "无法读取选择的文件，请确保文件存在且有读取权限。");
+        logMessage("无法读取文件：" + filePath);
+        return;
+    }
+    file.close();
+
+    // 保存选择的文件路径
+    selectedFilePath = filePath;
     
     // 构建源文件路径
     QString sourceDir = remoteDirectory.trimmed();
@@ -2173,17 +2428,22 @@ void MainWindow::onUpgrade7evSd()
     int ret = QMessageBox::question(this, "确认7ev SD卡升级", 
         QString("即将在远程服务器上执行7ev SD卡固件升级操作：\n\n"
         "执行步骤：\n"
-        "1. 检查并处理已有挂载状态\n"
-        "2. 挂载 %1 到 %2\n"
-        "3. 检查 %3 文件是否存在\n"
-        "4. 如果存在，解压到 %2（忽略权限问题）\n"
-        "5. 验证解压结果\n"
-        "6. 执行 sync 同步数据到磁盘\n\n"
+        "1. 上传固件文件：%1\n"
+        "2. 检查并处理已有挂载状态\n"
+        "3. 挂载 %2 到 %3\n"
+        "4. 检查 %4 文件是否存在\n"
+        "5. 如果存在，解压到 %3（忽略权限问题）\n"
+        "6. 验证解压结果\n"
+        "7. 执行 sync 同步数据到磁盘\n\n"
         "注意：此操作将替换SD卡固件文件，请确认：\n"
         "• 已备份重要数据\n"
         "• boots.tar.gz 文件完整有效\n"
         "• 升级过程中不要断电\n\n"
-        "是否继续执行7ev SD卡升级操作？").arg(devicePath).arg(mountPath).arg(sourceFile),
+        "是否继续执行7ev SD卡升级操作？")
+        .arg(fileInfo.fileName())
+        .arg(devicePath)
+        .arg(mountPath)
+        .arg(sourceFile),
         QMessageBox::Yes | QMessageBox::No,
         QMessageBox::No);
     
@@ -2193,22 +2453,128 @@ void MainWindow::onUpgrade7evSd()
     }
     
     logMessage("开始执行7ev SD卡升级操作...");
-    logMessage("执行前检查：验证系统环境和文件完整性");
-    logMessage("步骤1：检查并处理已有挂载状态");
-    logMessage(QString("步骤2：挂载分区 %1 到 %2").arg(devicePath).arg(mountPath));
-    logMessage(QString("步骤3：检查固件文件 %1").arg(sourceFile));
-    logMessage("步骤4：解压固件到目标分区");
-    logMessage("步骤5：验证解压结果");
-    logMessage("步骤6：同步数据到磁盘并卸载分区");
+    logMessage("操作步骤：1. 上传升级包  2. 执行升级操作");
+    statusLabel->setText("正在上传7ev固件升级包");
+    transferProgressBar->setVisible(true);
     
-    statusLabel->setText("正在执行7ev SD卡升级");
+    // 禁用所有操作按钮
+    disableAllOperationButtons();
+
+    // 设置标志位
+    is7evSdUpgradeFile = true;
+    
+    // 开始上传文件
+    startUpload();
+}
+
+void MainWindow::onUpgradeKu5p()
+{
+    if (!validateSettings()) {
+        return;
+    }
+    
+    // 检查是否有进程正在运行
+    if (uploadProcess && uploadProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "请等待当前操作完成后再执行KU5P升级操作！");
+        return;
+    }
+    
+    if (remoteCommandProcess && remoteCommandProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "远程命令正在执行中，请稍等...");
+        return;
+    }
+    
+    if (preCheck7evProcess && preCheck7evProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "KU5P固件升级预检查正在执行中，请稍等...");
+        return;
+    }
+    
+    if (upgradeKu5pProcess && upgradeKu5pProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "KU5P固件升级正在执行中，请稍等...");
+        return;
+    }
+
+    // 选择要上传的文件
+    QString filePath = QFileDialog::getOpenFileName(this,
+        "选择KU5P固件升级包",
+        QDir::currentPath(),
+        "KU5P固件升级包 (ku5p_package.tar.gz);;所有文件 (*)");
+
+    if (filePath.isEmpty()) {
+        logMessage("用户取消了文件选择");
+        return;
+    }
+
+    // 检查文件名是否正确
+    QFileInfo fileInfo(filePath);
+    if (fileInfo.fileName() != "ku5p_package.tar.gz") {
+        QMessageBox::warning(this, "文件错误", 
+            "请选择正确的KU5P升级包文件：ku5p_package.tar.gz");
+        logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
+        return;
+    }
+
+    // 检查文件是否存在且可读
+    QFile file(filePath);
+    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "文件错误", 
+            "无法读取选择的文件，请确保文件存在且有读取权限。");
+        logMessage("无法读取文件：" + filePath);
+        return;
+    }
+    file.close();
+
+    // 保存选择的文件路径
+    selectedFilePath = filePath;
+    
+    // 构建源文件路径
+    QString sourceDir = remoteDirectory.trimmed();
+    if (!sourceDir.endsWith('/')) {
+        sourceDir += '/';
+    }
+    QString sourceFile = sourceDir + "ku5p_package.tar.gz";
+    QString devicePath = "/dev/mmcblk0p1";
+    QString mountPath = "/mnt/mmcblk0p1";
+    
+    // 确认对话框
+    int ret = QMessageBox::question(this, "确认升级", 
+        QString("即将在远程服务器上执行KU5P固件升级操作：\n\n"
+        "1. 上传文件：%1\n"
+        "2. 工作目录：%2\n"
+        "3. 挂载设备：%3 到 %4\n"
+        "4. 执行命令：tar -xzvf ku5p_package.tar.gz -C %4 && sync\n\n"
+        "说明：\n"
+        "1. 检查并挂载设备分区\n"
+        "2. 从 %5 解压ku5p_package.tar.gz到%4目录\n"
+        "3. 执行sync命令同步数据到磁盘\n\n"
+        "注意：此操作将解压并覆盖目标目录中的文件，请确认无误后继续。\n\n"
+        "是否继续执行升级操作？")
+        .arg(fileInfo.fileName())
+        .arg(sourceDir)
+        .arg(devicePath)
+        .arg(mountPath)
+        .arg(sourceFile),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
+    
+    if (ret != QMessageBox::Yes) {
+        logMessage("用户取消了KU5P固件升级操作");
+        return;
+    }
+    
+    logMessage("开始执行KU5P固件升级操作...");
+    logMessage("操作步骤：1. 上传升级包  2. 检查并挂载设备  3. 解压KU5P固件包  4. 同步数据到磁盘");
+    statusLabel->setText("正在上传KU5P升级包");
     transferProgressBar->setVisible(true);
     
     // 禁用所有操作按钮
     disableAllOperationButtons();
     
-    // 先执行预检查
-    executePreCheck7ev(devicePath, mountPath);
+    // 设置标志位
+    isKu5pUpgradeFile = true;
+    
+    // 开始上传文件
+    startUpload();
 }
 
 void MainWindow::executePreCheck7ev(const QString &devicePath, const QString &mountPath)
@@ -2225,6 +2591,14 @@ void MainWindow::executePreCheck7ev(const QString &devicePath, const QString &mo
     // 构建预检查命令
     QString preCheckCommand = 
         "echo 'Pre-check: Verifying system environment...' && "
+        "if ! command -v pv >/dev/null 2>&1; then "
+        "  echo '正在安装pv工具...' && "
+        "  if command -v apt-get >/dev/null 2>&1; then "
+        "    apt-get update && apt-get install -y pv || true; "
+        "  elif command -v yum >/dev/null 2>&1; then "
+        "    yum install -y pv || true; "
+        "  fi; "
+        "fi && "
         "echo 'Checking device " + devicePath + "...' && "
         "ls -la " + devicePath + " && "
         "echo 'Checking firmware directory...' && "
@@ -2409,7 +2783,11 @@ void MainWindow::executeActual7evUpgrade(const QString &devicePath, const QStrin
         "echo 'Found boots.tar.gz, file info:' && "
         "ls -la %4 && "                                                 // 显示文件信息
         "echo 'Step 6: Starting extraction...' && "
-        "tar -xzvf %4 -C %1 --no-same-owner --no-same-permissions && " // 解压到目标分区，忽略所有权和权限
+        "if command -v pv >/dev/null 2>&1; then "
+        "  pv -n %4 | tar -xzf - -C %1 --no-same-owner --no-same-permissions; "
+        "else "
+        "  tar -xzvf %4 -C %1 --no-same-owner --no-same-permissions; "
+        "fi && "
         "echo 'Step 7: Verifying extracted files...' && "
         "ls -la %1/ && "                                               // 显示解压后的文件
         "echo 'Step 8: Syncing data...' && "
@@ -2626,7 +3004,19 @@ void MainWindow::execute7evRemoteCommand(const QString &command)
             this, [this]() {
         QString output = upgrade7evProcess->readAllStandardOutput();
         if (!output.isEmpty()) {
-            logMessage(QString("[7ev升级] %1").arg(output.trimmed()));
+            QString trimmedOutput = output.trimmed();
+            logMessage(QString("[7ev升级] %1").arg(trimmedOutput));
+            
+            // 处理pv命令的进度输出
+            bool ok;
+            double progress = trimmedOutput.toDouble(&ok);
+            if (ok && progress >= 0 && progress <= 100) {
+                transferProgressBar->setValue(static_cast<int>(progress));
+            }
+            // 检查是否完成
+            else if (trimmedOutput.contains("7ev firmware upgrade completed successfully")) {
+                transferProgressBar->setValue(100);
+            }
         }
     });
     
@@ -2819,7 +3209,19 @@ void MainWindow::executeRemoteCommand(const QString &command, const QString &wor
             this, [this]() {
         QString output = remoteCommandProcess->readAllStandardOutput();
         if (!output.isEmpty()) {
-            logMessage(QString("[命令输出] %1").arg(output.trimmed()));
+            QString trimmedOutput = output.trimmed();
+            logMessage(QString("[命令输出] %1").arg(trimmedOutput));
+            
+            // 处理pv命令的进度输出
+            bool ok;
+            double progress = trimmedOutput.toDouble(&ok);
+            if (ok && progress >= 0 && progress <= 100) {
+                transferProgressBar->setValue(static_cast<int>(progress));
+            }
+            // 检查是否完成
+            else if (trimmedOutput.contains("Qt软件升级完成")) {
+                transferProgressBar->setValue(100);
+            }
         }
     });
     
@@ -3203,128 +3605,6 @@ void MainWindow::cleanExpiredLogs()
     }
 }
 
-void MainWindow::onUpgradeKu5p()
-{
-    if (!validateSettings()) {
-        return;
-    }
-    
-    // 检查是否有进程正在运行
-    if (uploadProcess && uploadProcess->state() != QProcess::NotRunning) {
-        QMessageBox::warning(this, "操作进行中", "请等待当前操作完成后再执行ku5p升级操作！");
-        return;
-    }
-    
-    if (remoteCommandProcess && remoteCommandProcess->state() != QProcess::NotRunning) {
-        QMessageBox::warning(this, "操作进行中", "远程命令正在执行中，请稍等...");
-        return;
-    }
-    
-    if (upgradeKu5pProcess && upgradeKu5pProcess->state() != QProcess::NotRunning) {
-        QMessageBox::warning(this, "操作进行中", "ku5p升级正在执行中，请稍等...");
-        return;
-    }
-    
-    // 构建源文件路径和目标目录路径
-    QString sourceDir = remoteDirectory.trimmed();
-    if (!sourceDir.endsWith('/')) {
-        sourceDir += '/';
-    }
-    QString sourceFile = sourceDir + "ku5p_package.tar.gz";
-    QString targetDir = sourceDir + "updatepackage";
-    
-    // 确认对话框
-    int ret = QMessageBox::question(this, "确认ku5p升级", 
-        QString("即将在远程服务器上执行ku5p升级操作：\n\n"
-        "执行步骤：\n"
-        "1. 检查 %1 文件是否存在\n"
-        "2. 创建目标目录 %2\n"
-        "3. 解压 ku5p_package.tar.gz 到 %2 目录\n"
-        "4. 进入 %2 目录\n"
-        "5. 执行 ./ku5pupgrade ku5p_package.bit 进行升级\n"
-        "6. 同步数据到磁盘\n\n"
-        "⚠️ 重要警告：\n"
-        "• 升级过程中绝对不能断电或重启设备\n"
-        "• 升级过程可能需要5-10分钟，请耐心等待\n"
-        "• 如遇到I/O错误，系统会自动终止升级\n"
-        "• 已备份重要数据\n"
-        "• ku5p_package.tar.gz 文件完整有效\n\n"
-        "升级过程中会显示擦除进度，请勿中断操作！\n\n"
-        "是否继续执行ku5p升级操作？")
-        .arg(sourceFile).arg(targetDir),
-        QMessageBox::Yes | QMessageBox::No,
-        QMessageBox::No);
-    
-    if (ret != QMessageBox::Yes) {
-        logMessage("用户取消了ku5p升级操作");
-        return;
-    }
-    
-    logMessage("开始执行ku5p升级操作...");
-    logMessage(QString("执行步骤：1. 检查软件包  2. 创建目标目录  3. 解压到%1  4. 执行升级程序").arg(targetDir));
-    statusLabel->setText("正在执行ku5p升级");
-    transferProgressBar->setVisible(true);
-    
-    // 禁用所有操作按钮
-    disableAllOperationButtons();
-    
-    // 执行ku5p升级
-    executeKu5pUpgrade();
-}
-
-void MainWindow::executeKu5pUpgrade()
-{
-    logMessage("[ku5p升级] 开始执行ku5p升级操作...");
-    
-    // 构建源文件路径和目标目录路径
-    QString sourceDir = remoteDirectory.trimmed();
-    if (!sourceDir.endsWith('/')) {
-        sourceDir += '/';
-    }
-    QString sourceFile = sourceDir + "ku5p_package.tar.gz";
-    QString targetDir = sourceDir + "updatepackage";
-    
-    // 构建升级命令
-    QString command = 
-        QString("echo 'Step 1: Checking ku5p package file...' && "
-        "if [ ! -f %1 ]; then "                                               // 检查文件是否存在
-        "  echo 'ERROR: ku5p_package.tar.gz not found in %2'; "
-        "  echo 'Available files in directory:'; "
-        "  ls -la %2; "
-        "  exit 1; "
-        "fi && "
-        "echo 'Found ku5p_package.tar.gz, file info:' && "
-        "ls -la %1 && "                                                       // 显示文件信息
-        "echo 'Step 2: Creating target directory...' && "
-        "mkdir -p %3 && "                                                     // 创建目标目录
-        "echo 'Step 3: Extracting ku5p package to %3...' && "
-        "cd %3 && "                                                           // 切换到目标目录
-        "tar -xzvf %1 && "                                                    // 解压文件到当前目录
-        "echo 'Step 4: Verifying extracted files...' && "
-        "ls -la %3 && "                                                       // 显示解压后的文件
-        "echo 'Step 5: Checking for upgrade script...' && "
-        "if [ ! -f ku5pupgrade ]; then "                                      // 检查升级脚本是否存在
-        "  echo 'ERROR: ku5pupgrade script not found'; "
-        "  ls -la; "
-        "  exit 1; "
-        "fi && "
-        "if [ ! -f ku5p_package.bit ]; then "                                 // 检查bit文件是否存在
-        "  echo 'ERROR: ku5p_package.bit not found'; "
-        "  ls -la; "
-        "  exit 1; "
-        "fi && "
-        "echo 'Making upgrade script executable...' && "
-        "chmod +x ku5pupgrade && "                                            // 设置可执行权限
-        "echo 'Step 6: Starting ku5p upgrade...' && "
-        "./ku5pupgrade ku5p_package.bit && "                                  // 执行升级
-        "echo 'Step 7: Syncing data...' && "
-        "sync && "                                                            // 同步数据
-        "echo 'ku5p upgrade completed successfully'")                         // 完成提示
-        .arg(sourceFile).arg(sourceDir).arg(targetDir);
-    
-    executeKu5pRemoteCommand(command);
-}
-
 void MainWindow::executeKu5pRemoteCommand(const QString &command)
 {
     if (upgradeKu5pProcess) {
@@ -3335,6 +3615,11 @@ void MainWindow::executeKu5pRemoteCommand(const QString &command)
     }
     
     upgradeKu5pProcess = new QProcess(this);
+    
+    // 显示进度条
+    transferProgressBar->setVisible(true);
+    transferProgressBar->setValue(0);
+    transferProgressBar->setFormat("升级中 %p%");
     
     // 连接信号
     connect(upgradeKu5pProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
@@ -3514,6 +3799,10 @@ void MainWindow::executeKu5pRemoteCommand(const QString &command)
                     statusLabel->setText(QString("ku5p升级中 - 擦除进度: %1/%2 (%3%)")
                                        .arg(current).arg(total).arg(percent));
                     
+                    // 更新进度条
+                    transferProgressBar->setValue(percent.toInt());
+                    transferProgressBar->setFormat(QString("擦除中 %1/%2 (%p%%)").arg(current).arg(total));
+                    
                     // 每10%记录一次进度
                     int percentInt = percent.toInt();
                     static int lastLoggedPercent = -1;
@@ -3588,7 +3877,7 @@ void MainWindow::executeKu5pRemoteCommand(const QString &command)
     upgradeKu5pProcess->start(program, arguments);
     
     // 设置升级超时检测（10分钟）
-    QTimer::singleShot(600000, this, [this](){
+    QTimer::singleShot(6000000, this, [this](){
         if (upgradeKu5pProcess && upgradeKu5pProcess->state() == QProcess::Running) {
             logMessage("[警告] ku5p升级操作超时（10分钟），可能遇到问题");
             logMessage("[系统] 正在强制终止升级进程...");
@@ -3688,7 +3977,7 @@ void MainWindow::enableAllOperationButtons()
     executeCommandButton->setEnabled(true);
     clearLogButton->setEnabled(true);
     clearOutputButton->setEnabled(true);
-    sshKeyManageButton->setEnabled(true);
+    //sshKeyManageButton->setEnabled(true);
     
     // 恢复内置命令窗口控件
     executeBuiltinCommandButton->setEnabled(true);

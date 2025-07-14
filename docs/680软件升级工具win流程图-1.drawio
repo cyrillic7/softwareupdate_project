@@ -1,0 +1,623 @@
+<mxfile host="65bd71144e">
+    <diagram name="680软件升级工具流程图" id="680-software-upgrade-flowchart">
+        <mxGraphModel dx="1397" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1800" background="none" math="0" shadow="1">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="start" value="应用程序启动" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E1F5FE;strokeColor=#01579B;fontSize=12;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="520" y="40" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="auth_check" value="机器授权验证" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;fontSize=12;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="520" y="140" width="120" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="auth_fail" value="显示错误信息&lt;br/&gt;提示使用GetMachineCode&lt;br/&gt;获取机器码" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="340" y="160" width="120" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="get_machine_code_step" value="使用GetMachineCode&lt;br/&gt;获取机器码" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="340" y="270" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="send_to_admin" value="将机器码发送给管理员" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="340" y="420" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="admin_generate_auth" value="管理员使用GenerateAuth&lt;br/&gt;生成授权码" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="340" y="500" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="apply_auth" value="应用授权码&lt;br/&gt;重新启动验证" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="340" y="590" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="load_ui" value="启动升级程序" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="700" y="160" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="main_ui" value="主界面显示" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E8;strokeColor=#2E7D32;fontSize=12;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="700" y="260" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="function_select" value="用户选择功能" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57C00;fontSize=12;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="700" y="350" width="120" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="file_transfer" value="文件传输功能" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;fontSize=12;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="80" y="480" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="select_file" value="选择本地文件" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="80" y="560" width="120" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="config_conn" value="配置连接参数&lt;br/&gt;(IP、端口、用户名、密码)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="80" y="620" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="test_conn" value="测试连接" style="rhombus;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="80" y="750" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="start_upload" value="开始文件上传" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="250" y="810" width="120" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="scp_progress" value="传输进度监控" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="250" y="890" width="120" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="md5_check" value="文件MD5校验" style="rhombus;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="250" y="980" width="120" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="transfer_complete" value="传输完成" style="ellipse;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=11;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="410" y="1000" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="remote_cmd" value="远程命令执行" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C2185B;fontSize=12;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="490" y="595" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="input_cmd" value="输入远程命令" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C2185B;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="490" y="710" width="120" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="auth_method" value="认证方式选择" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C2185B;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="490" y="800" width="120" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="pwd_auth" value="SSH密码认证" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C2185B;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="750" y="750" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="key_auth" value="SSH密钥认证" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C2185B;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="750" y="810" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="mixed_auth" value="自动选择认证方式" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C2185B;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="750" y="870" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="exec_cmd" value="执行远程命令" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C2185B;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="890" y="810" width="120" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="cmd_output" value="实时显示命令输出" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C2185B;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="1050" y="810" width="120" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="system_upgrade" value="系统升级功能" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57C00;fontSize=12;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="670" y="520" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="upgrade_select" value="系统升级选择" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57C00;fontSize=11" parent="1" vertex="1">
+                    <mxGeometry x="885" y="380" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="qt_upgrade" value="Qt软件升级" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57C00;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1070" y="160" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="qt_upgrade_process" value="Qt升级过程监控" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57C00;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1360" y="270" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="qt_upgrade_check" value="升级状态检查" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57C00;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1360" y="400" width="100" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="qt_upgrade_fail" value="Qt升级失败处理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1550" y="670" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="qt_rollback" value="Qt版本回滚" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1550" y="730" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="qt_recovery" value="Qt恢复模式" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1550" y="790" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="qt_upgrade_success" value="Qt升级成功" style="ellipse;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=10;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="1055" y="600" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="firmware_upgrade" value="7ev固件升级(emmc,sd卡)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57C00;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1220" y="160" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="firmware_upgrade_process" value="固件升级过程监控" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57C00;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1510" y="270" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="firmware_upgrade_check" value="固件升级状态检查" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57C00;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1510" y="400" width="100" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="firmware_upgrade_fail" value="固件升级失败处理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1700" y="670" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="15" value="" style="edgeStyle=none;html=1;" edge="1" parent="1" source="firmware_emergency" target="firmware_upgrade_fail">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="firmware_emergency" value="系统启动文件损坏" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1700" y="730" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="14" value="" style="edgeStyle=none;html=1;" edge="1" parent="1" source="firmware_bootloader" target="firmware_emergency">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="firmware_bootloader" value="拆机升级" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1700" y="790" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="firmware_upgrade_success" value="固件升级成功" style="ellipse;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=10;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="1205" y="600" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="ku5p_upgrade" value="Ku5p升级" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57C00;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1370" y="160" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="ku5p_upgrade_process" value="Ku5p升级过程监控" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57C00;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1660" y="270" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="ku5p_upgrade_check" value="Ku5p升级状态检查" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57C00;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1660" y="400" width="100" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="ku5p_upgrade_fail" value="Ku5p升级失败处理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1850" y="670" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="ku5p_recovery" value="Ku5p异常" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1850" y="730" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="ku5p_reset" value="图像机重启，重新升级ku5p" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="1850" y="790" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="ku5p_upgrade_success" value="Ku5p升级成功" style="ellipse;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=10;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="1355" y="600" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge1" parent="1" source="start" target="auth_check" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge2" parent="1" source="auth_check" target="auth_fail" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge3" parent="1" source="auth_fail" target="get_machine_code_step" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge4" parent="1" source="get_machine_code_step" target="send_to_admin" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge5" parent="1" source="send_to_admin" target="admin_generate_auth" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge6" parent="1" source="admin_generate_auth" target="apply_auth" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge7" parent="1" source="apply_auth" target="start" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="220" y="545"/>
+                            <mxPoint x="220" y="70"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge8" parent="1" source="auth_check" target="load_ui" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge9" parent="1" source="load_ui" target="main_ui" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge10" parent="1" source="main_ui" target="function_select" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge11" parent="1" source="function_select" target="file_transfer" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="580" y="390"/>
+                            <mxPoint x="140" y="390"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge12" parent="1" source="function_select" target="remote_cmd" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="600" y="390"/>
+                            <mxPoint x="550" y="390"/>
+                            <mxPoint x="550" y="570"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="2" value="管理员操作" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontStyle=0;fontColor=#CC0066;labelBackgroundColor=#CCFF99;labelBorderColor=default;textShadow=1;" parent="edge12" connectable="0" vertex="1">
+                    <mxGeometry x="0.3465" y="3" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge13" parent="1" source="function_select" target="system_upgrade" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="680" y="390"/>
+                            <mxPoint x="680" y="500"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge15" parent="1" source="file_transfer" target="select_file" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge16" parent="1" source="select_file" target="config_conn" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge17" parent="1" source="config_conn" target="test_conn" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge18" parent="1" source="test_conn" target="start_upload" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge19" parent="1" source="start_upload" target="scp_progress" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge20" parent="1" source="scp_progress" target="md5_check" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge21" parent="1" source="md5_check" target="transfer_complete" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge22" parent="1" source="test_conn" target="config_conn" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="40" y="730"/>
+                            <mxPoint x="40" y="650"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge23" parent="1" source="remote_cmd" target="input_cmd" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge24" parent="1" source="input_cmd" target="auth_method" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge25" parent="1" source="auth_method" target="pwd_auth" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge26" parent="1" source="auth_method" target="key_auth" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge27" parent="1" source="auth_method" target="mixed_auth" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge28" parent="1" source="pwd_auth" target="exec_cmd" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge29" parent="1" source="key_auth" target="exec_cmd" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge30" parent="1" source="mixed_auth" target="exec_cmd" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge31" parent="1" source="exec_cmd" target="cmd_output" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge32" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="500" y="780"/>
+                        </Array>
+                        <mxPoint x="500" y="820" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge33" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="987.3684210526317" y="773.6842105263158" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge43" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="940" y="810" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge34" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1140" y="760" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge35" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1260" y="762.0833333333335" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge36" parent="1" source="system_upgrade" target="upgrade_select" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge37" parent="1" source="upgrade_select" target="qt_upgrade" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge38" parent="1" source="upgrade_select" target="firmware_upgrade" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge39" parent="1" source="upgrade_select" target="ku5p_upgrade" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_qt_1" parent="1" source="qt_upgrade" target="qt_upgrade_process" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_qt_2" parent="1" source="qt_upgrade_process" target="qt_upgrade_check" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_qt_3" parent="1" source="qt_upgrade_check" target="qt_upgrade_fail" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_qt_4" parent="1" source="qt_upgrade_check" target="qt_upgrade_success" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_qt_5" parent="1" source="qt_upgrade_fail" target="qt_rollback" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_qt_6" parent="1" source="qt_rollback" target="qt_recovery" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_fw_1" parent="1" source="firmware_upgrade" target="firmware_upgrade_process" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_fw_2" parent="1" source="firmware_upgrade_process" target="firmware_upgrade_check" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_fw_3" parent="1" source="firmware_upgrade_check" target="firmware_upgrade_fail" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_fw_4" parent="1" source="firmware_upgrade_check" target="firmware_upgrade_success" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_fw_5" parent="1" source="firmware_upgrade_fail" target="firmware_emergency" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_fw_6" parent="1" source="firmware_emergency" target="firmware_bootloader" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_ku5p_1" parent="1" source="ku5p_upgrade" target="ku5p_upgrade_process" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_ku5p_2" parent="1" source="ku5p_upgrade_process" target="ku5p_upgrade_check" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_ku5p_3" parent="1" source="ku5p_upgrade_check" target="ku5p_upgrade_fail" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_ku5p_4" parent="1" source="ku5p_upgrade_check" target="ku5p_upgrade_success" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_ku5p_5" parent="1" source="ku5p_upgrade_fail" target="ku5p_recovery" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_ku5p_6" parent="1" source="ku5p_recovery" target="ku5p_reset" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_exception_1" parent="1" source="power_failure" target="process_interrupted" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="2100" y="300"/>
+                            <mxPoint x="2170" y="300"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge_exception_2" parent="1" source="network_failure" target="process_interrupted" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_exception_3" parent="1" source="storage_failure" target="process_interrupted" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="2340" y="300"/>
+                            <mxPoint x="2270" y="300"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge_exception_4" parent="1" source="process_interrupted" target="backup_check" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_exception_5" parent="1" source="backup_check" target="restore_backup" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_exception_6" parent="1" source="backup_check" target="manual_recovery" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_exception_7" parent="1" source="restore_backup" target="system_check" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="2080" y="460"/>
+                            <mxPoint x="2170" y="460"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge_exception_8" parent="1" source="manual_recovery" target="system_check" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="2360" y="460"/>
+                            <mxPoint x="2270" y="460"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge_exception_9" parent="1" source="system_check" target="recovery_complete" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_exception_10" parent="1" source="recovery_complete" target="log_error" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="2170" y="610"/>
+                            <mxPoint x="2100" y="610"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge_exception_11" parent="1" source="recovery_complete" target="alert_user" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="2210" y="610"/>
+                            <mxPoint x="2220" y="610"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge_exception_12" parent="1" source="recovery_complete" target="retry_upgrade" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="2250" y="610"/>
+                            <mxPoint x="2340" y="610"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge_qt_exception" parent="1" source="qt_upgrade_process" target="power_failure" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1620" y="170"/>
+                            <mxPoint x="1700" y="140"/>
+                            <mxPoint x="1800" y="130"/>
+                            <mxPoint x="1850" y="130"/>
+                            <mxPoint x="2230" y="130"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge_fw_exception" parent="1" source="firmware_upgrade_process" target="network_failure" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1700" y="140"/>
+                            <mxPoint x="1800" y="130"/>
+                            <mxPoint x="1850" y="130"/>
+                            <mxPoint x="2230" y="130"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge_ku5p_exception" parent="1" source="ku5p_upgrade_process" target="storage_failure" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1700" y="140"/>
+                            <mxPoint x="1800" y="130"/>
+                            <mxPoint x="1870" y="130"/>
+                            <mxPoint x="1920" y="130"/>
+                            <mxPoint x="2070" y="130"/>
+                            <mxPoint x="2230" y="130"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge40" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="930" y="639.8275862068965" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge41" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="930" y="651.5853658536585" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="power_failure" value="断电异常检测" style="hexagon;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#D32F2F;fontSize=10;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="2050" y="250" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="network_failure" value="网络中断检测" style="hexagon;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#D32F2F;fontSize=10;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="2170" y="250" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="storage_failure" value="存储异常检测" style="hexagon;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#D32F2F;fontSize=10;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="2290" y="250" width="100" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="process_interrupted" value="升级过程中断" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#D32F2F;fontSize=10;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="2170" y="330" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="backup_check" value="备份文件检查" style="rhombus;whiteSpace=wrap;html=1;fillColor=#E1F5FE;strokeColor=#0277BD;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="2170" y="400" width="100" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="restore_backup" value="从备份恢复" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1F5FE;strokeColor=#0277BD;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="2030" y="420" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="" style="edgeStyle=none;html=1;" parent="1" source="manual_recovery" target="3" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="" style="edgeStyle=none;html=1;" parent="1" source="manual_recovery" target="3" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="" style="edgeStyle=none;html=1;" parent="1" source="manual_recovery" target="3" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="" style="edgeStyle=none;html=1;" parent="1" source="manual_recovery" target="3" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="8" value="" style="edgeStyle=none;html=1;" parent="1" source="manual_recovery" target="3" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="manual_recovery" value="手动恢复模式" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1F5FE;strokeColor=#0277BD;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="2310" y="420" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="system_check" value="系统完整性检查" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1F5FE;strokeColor=#0277BD;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="2170" y="490" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="recovery_complete" value="恢复完成" style="ellipse;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=10;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="2170" y="560" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="log_error" value="错误日志记录" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="2050" y="630" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="alert_user" value="用户告警通知" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="2170" y="630" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="retry_upgrade" value="重试升级" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="2290" y="630" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_fail" value="验证失败" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#D32F2F" parent="1" vertex="1">
+                    <mxGeometry x="460" y="170" width="60" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_success" value="验证成功" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#2E7D32" parent="1" vertex="1">
+                    <mxGeometry x="640" y="170" width="60" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_conn_fail" value="连接失败" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#D32F2F" parent="1" vertex="1">
+                    <mxGeometry x="10" y="690" width="50" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_conn_success" value="连接成功" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#2E7D32" parent="1" vertex="1">
+                    <mxGeometry x="210" y="780" width="50" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="title" value="680图像机软件升级工具流程图（网口升级）- 含异常处理" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#1565C0" parent="1" vertex="1">
+                    <mxGeometry x="700" y="10" width="500" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_qt_fail" value="升级失败" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#D32F2F" parent="1" vertex="1">
+                    <mxGeometry x="1460" y="522.5" width="50" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_qt_success" value="升级成功" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#2E7D32" parent="1" vertex="1">
+                    <mxGeometry x="1150" y="570" width="50" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_fw_fail" value="升级失败" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#D32F2F" parent="1" vertex="1">
+                    <mxGeometry x="1610" y="522.5" width="50" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_fw_success" value="升级成功" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#2E7D32" parent="1" vertex="1">
+                    <mxGeometry x="1300" y="570" width="50" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_ku5p_fail" value="升级失败" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#D32F2F" parent="1" vertex="1">
+                    <mxGeometry x="1760" y="522.5" width="50" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_ku5p_success" value="升级成功" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#2E7D32" parent="1" vertex="1">
+                    <mxGeometry x="1450" y="570" width="50" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_exception_title" value="异常处理流程" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1;fontColor=#D32F2F" parent="1" vertex="1">
+                    <mxGeometry x="2170" y="210" width="120" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_backup_exist" value="备份存在" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#2E7D32" parent="1" vertex="1">
+                    <mxGeometry x="2110" y="400" width="50" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_backup_not_exist" value="备份不存在" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#D32F2F" parent="1" vertex="1">
+                    <mxGeometry x="2290" y="400" width="60" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_power_failure" value="断电" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#D32F2F" parent="1" vertex="1">
+                    <mxGeometry x="2050" y="250" width="30" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_network_failure" value="网络中断" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#D32F2F" parent="1" vertex="1">
+                    <mxGeometry x="2170" y="250" width="50" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_storage_failure" value="存储故障" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#D32F2F" parent="1" vertex="1">
+                    <mxGeometry x="2290" y="250" width="50" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="13" style="edgeStyle=none;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="3" target="upgrade_select" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="2530" y="90"/>
+                            <mxPoint x="1720" y="100"/>
+                            <mxPoint x="945" y="100"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="3" value="可以正常重启图像机" style="whiteSpace=wrap;html=1;fontSize=10;fillColor=#E1F5FE;strokeColor=#0277BD;rounded=1;" parent="1" vertex="1">
+                    <mxGeometry x="2480" y="380" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="12" value="" style="edgeStyle=none;html=1;" parent="1" source="9" target="11" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="无法正常启动图像机" style="whiteSpace=wrap;html=1;fontSize=10;fillColor=#E1F5FE;strokeColor=#0277BD;rounded=1;" parent="1" vertex="1">
+                    <mxGeometry x="2480" y="470" width="100" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="10" value="" style="edgeStyle=none;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" target="9" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="2410" y="459" as="sourcePoint"/>
+                        <mxPoint x="2480" y="440" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="11" value="拆机烧录程序" style="whiteSpace=wrap;html=1;fontSize=10;fillColor=#E1F5FE;strokeColor=#0277BD;rounded=1;" parent="1" vertex="1">
+                    <mxGeometry x="2640" y="470" width="100" height="40" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

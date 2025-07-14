@@ -312,6 +312,11 @@ private:
     bool waitingForPassword;    // 是否正在等待密码输入
     bool isGeneratingAndDeploying; // 是否正在执行一体化生成和部署
     bool sshKeyEnabled; // 新增：SSH密钥功能是否已启用
+    // 标志位
+    bool isQtUpgradeFile = false;  // 标记当前是否在处理Qt升级包
+    bool is7evUpgradeFile = false; // 标记当前是否在处理7ev EMMC升级包
+    bool is7evSdUpgradeFile = false; // 标记当前是否在处理7ev SD卡升级包
+    bool isKu5pUpgradeFile = false; // 标记当前是否在处理KU5P升级包
 };
 
 #endif // MAINWINDOW_H 
