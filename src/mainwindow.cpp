@@ -29,13 +29,13 @@ static QString lastSuccessfulAuthMethod = "None";
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), uploadProcess(nullptr), testProcess(nullptr), verifyProcess(nullptr),
               remoteCommandProcess(nullptr), customCommandProcess(nullptr), preCheck7evProcess(nullptr), upgrade7evProcess(nullptr),
-        upgradeKu5pProcess(nullptr), sshKeyGenProcess(nullptr), builtinCommandProcess(nullptr), progressTimer(nullptr), timeoutTimer(nullptr), keyFile(nullptr),
+        upgradeKu5pProcess(nullptr), upgradePatchProcess(nullptr), sshKeyGenProcess(nullptr), builtinCommandProcess(nullptr), progressTimer(nullptr), timeoutTimer(nullptr), keyFile(nullptr),
         settingsDialog(nullptr), remoteDirectory("/media/sata/ue_data/"), waitingForPassword(false), isGeneratingAndDeploying(false), sshKeyEnabled(false), isQtUpgradeFile(false), is7evUpgradeFile(false), is7evSdUpgradeFile(false), isKu5pUpgradeFile(false)
 {
     // 设置应用程序信息
     QApplication::setOrganizationName("680SoftwareUpdate");
     QApplication::setApplicationName("680SoftwareUpdate");
-    QApplication::setApplicationVersion("1.0");
+    QApplication::setApplicationVersion("1.1");
     
     setupUI();
     setupMenuBar();
@@ -138,6 +138,14 @@ MainWindow::MainWindow(QWidget *parent)
         toggleLogAction->setChecked(false);
         toggleLogAction->setText("显示日志(&L)");
     }
+    
+    // 初始化文件选择栏状态（默认隐藏）
+    toggleFileSelectionAction->setChecked(false);
+    toggleFileSelectionAction->setText("显示文件选择与上传栏(&F)");
+    
+    // 初始化设置窗口状态（默认不显示）
+    toggleSettingsAction->setChecked(false);
+    toggleSettingsAction->setText("显示设置窗口(&S)");
     
     if (showCommandByDefault) {
         commandGroup->setVisible(true);
@@ -315,7 +323,7 @@ void MainWindow::setupUI()
     mainLayout->addWidget(connectionGroup);
     
     // 文件选择组
-    fileGroup = new QGroupBox("文件选择", this);
+    fileGroup = new QGroupBox("文件选择与上传", this);
     fileGroup->setObjectName("fileGroup");
     fileGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     fileLayout = new QHBoxLayout(fileGroup);
@@ -323,12 +331,17 @@ void MainWindow::setupUI()
     fileLabel = new QLabel("选择文件:", this);
     filePathLineEdit = new QLineEdit(this);
     filePathLineEdit->setObjectName("filePathLineEdit");
-    filePathLineEdit->setPlaceholderText("点击浏览按钮选择要上传的文件");
+    filePathLineEdit->setPlaceholderText("点击浏览按钮选择普通文件（非升级包）");
     filePathLineEdit->setReadOnly(true);
     
-    selectFileButton = new QPushButton("浏览文件", this);
+    selectFileButton = new QPushButton("浏览普通文件", this);
     selectFileButton->setObjectName("selectFileButton");
-    selectFileButton->setFixedWidth(100); // 固定按钮宽度
+    selectFileButton->setFixedWidth(120); // 稍微增加宽度以适应新文本
+    
+    // 创建开始上传按钮（放在文件选择栏中）
+    uploadButton = new QPushButton("开始上传", this);
+    uploadButton->setObjectName("uploadButton");
+    uploadButton->setFixedWidth(100); // 固定按钮宽度
     
     // 设置文件路径输入框的拉伸策略
     filePathLineEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -336,8 +349,12 @@ void MainWindow::setupUI()
     fileLayout->addWidget(fileLabel);
     fileLayout->addWidget(filePathLineEdit, 1); // 设置拉伸因子，使其占用更多空间
     fileLayout->addWidget(selectFileButton);
+    fileLayout->addWidget(uploadButton);
     
     mainLayout->addWidget(fileGroup);
+    
+    // 默认隐藏文件选择栏
+    fileGroup->setVisible(false);
     
     // 上传控制组
     uploadGroup = new QGroupBox("上传控制", this);
@@ -376,8 +393,6 @@ void MainWindow::setupUI()
     
     // 按钮布局
     uploadButtonLayout = new QHBoxLayout();
-    uploadButton = new QPushButton("开始上传", this);
-    uploadButton->setObjectName("uploadButton");
     
     cancelButton = new QPushButton("取消上传", this);
     cancelButton->setObjectName("cancelButton");
@@ -473,22 +488,50 @@ void MainWindow::setupUI()
         "}"
     );
     
+    upgradePatchButton = new QPushButton("升级补丁", this);
+    upgradePatchButton->setObjectName("upgradePatchButton");
+    
+    // 设置升级补丁按钮的绿色样式
+    upgradePatchButton->setStyleSheet(
+        "QPushButton#upgradePatchButton {"
+        "    background-color: #27ae60;"
+        "    color: white;"
+        "    border: 2px solid #229954;"
+        "    border-radius: 6px;"
+        "    font-weight: bold;"
+        "    padding: 8px 16px;"
+        "}"
+        "QPushButton#upgradePatchButton:hover {"
+        "    background-color: #229954;"
+        "    border-color: #1e8449;"
+        "}"
+        "QPushButton#upgradePatchButton:pressed {"
+        "    background-color: #1e8449;"
+        "    border-color: #196f3d;"
+        "}"
+        "QPushButton#upgradePatchButton:disabled {"
+        "    background-color: #bdc3c7;"
+        "    color: #7f8c8d;"
+        "    border-color: #95a5a6;"
+        "}"
+    );
+    
     // 设置按钮的最小宽度，保持一致的外观
-    uploadButton->setMinimumWidth(100);
     cancelButton->setMinimumWidth(100);
     clearLogButton->setMinimumWidth(100);
     upgradeQtButton->setMinimumWidth(100);
     upgrade7evEmmcButton->setMinimumWidth(120);
     upgrade7evSdButton->setMinimumWidth(120);
     upgradeKu5pButton->setMinimumWidth(100);
+    upgradePatchButton->setMinimumWidth(100);
     
-    uploadButtonLayout->addWidget(uploadButton);
     uploadButtonLayout->addWidget(cancelButton);
     uploadButtonLayout->addWidget(clearLogButton);
     uploadButtonLayout->addWidget(upgradeQtButton);
     uploadButtonLayout->addWidget(upgrade7evEmmcButton);
     uploadButtonLayout->addWidget(upgrade7evSdButton);
     uploadButtonLayout->addWidget(upgradeKu5pButton);
+    uploadButtonLayout->addWidget(upgradePatchButton);
     uploadButtonLayout->addStretch(); // 添加弹性空间，使按钮左对齐
     
     uploadLayout->addWidget(statusWidget);
@@ -750,6 +793,20 @@ void MainWindow::setupMenuBar()
     toggleBuiltinCommandAction->setChecked(false); // 默认隐藏内置命令窗口
     viewMenu->addAction(toggleBuiltinCommandAction);
     
+    viewMenu->addSeparator();
+    
+    toggleFileSelectionAction = new QAction("显示文件选择与上传栏(&F)", this);
+    toggleFileSelectionAction->setShortcut(QKeySequence("Ctrl+F"));
+    toggleFileSelectionAction->setCheckable(true);
+    toggleFileSelectionAction->setChecked(false); // 默认隐藏文件选择栏
+    viewMenu->addAction(toggleFileSelectionAction);
+    
+    toggleSettingsAction = new QAction("显示设置窗口(&S)", this);
+    toggleSettingsAction->setShortcut(QKeySequence("Ctrl+Shift+S"));
+    toggleSettingsAction->setCheckable(true);
+    toggleSettingsAction->setChecked(false); // 默认不显示设置窗口
+    viewMenu->addAction(toggleSettingsAction);
+    
     // 帮助菜单
     helpMenu = menuBar()->addMenu("帮助(&H)");
     
@@ -778,6 +835,7 @@ void MainWindow::connectSignals()
     connect(upgrade7evEmmcButton, &QPushButton::clicked, this, &MainWindow::onUpgrade7evEmmc);
     connect(upgrade7evSdButton, &QPushButton::clicked, this, &MainWindow::onUpgrade7evSd);
     connect(upgradeKu5pButton, &QPushButton::clicked, this, &MainWindow::onUpgradeKu5p);
+    connect(upgradePatchButton, &QPushButton::clicked, this, &MainWindow::onUpgradePatch);
     connect(executeCommandButton, &QPushButton::clicked, this, &MainWindow::onExecuteCustomCommand);
     connect(clearOutputButton, &QPushButton::clicked, this, &MainWindow::onClearCommandOutput);
     connect(commandLineEdit, &QLineEdit::returnPressed, this, &MainWindow::onCommandInputEnterPressed);
@@ -804,6 +862,8 @@ void MainWindow::connectSignals()
     connect(toggleLogAction, &QAction::triggered, this, &MainWindow::onToggleLogView);
     connect(toggleCommandAction, &QAction::triggered, this, &MainWindow::onToggleCommandView);
     connect(toggleBuiltinCommandAction, &QAction::triggered, this, &MainWindow::onToggleBuiltinCommandView);
+    connect(toggleFileSelectionAction, &QAction::triggered, this, &MainWindow::onToggleFileSelectionView);
+    connect(toggleSettingsAction, &QAction::triggered, this, &MainWindow::onToggleSettingsView);
     connect(showMachineCodeAction, &QAction::triggered, this, &MainWindow::onShowMachineCode);
     connect(enableSSHKeyAction, &QAction::triggered, this, &MainWindow::onEnableSSHKey);
     connect(disableSSHKeyAction, &QAction::triggered, this, &MainWindow::onDisableSSHKey);
@@ -818,7 +878,7 @@ void MainWindow::onSelectFile()
     }
     
     QString fileName = QFileDialog::getOpenFileName(this, 
-        "选择要上传的文件", 
+        "选择要上传的文件 (非升级功能)", 
         startPath, 
         "所有文件 (*)");
     
@@ -980,29 +1040,78 @@ void MainWindow::onTestConnection()
         logMessage("[测试] 未检测到SSH密钥和密码，尝试系统默认SSH连接");
         logMessage("[说明] 将尝试使用系统默认SSH配置进行连接测试");
         
+        // Windows版本兼容性检查
+        QSysInfo::WinVersion winVersion = QSysInfo::windowsVersion();
+        bool isWin11 = (winVersion >= QSysInfo::WV_WINDOWS10); // Win11通常报告为Win10或更高
+        
+        // 检测Windows版本类型
+        QString windowsVersion = QSysInfo::prettyProductName();
+        bool isHomeEdition = windowsVersion.contains("Home", Qt::CaseInsensitive);
+        
+        if (isWin11) {
+            if (isHomeEdition) {
+                logMessage("[兼容性] 检测到Windows 家庭版，启用特殊兼容性模式");
+                logMessage("[重要] Windows家庭版缺少完整SSH客户端，建议配置密码认证");
+                logMessage("[建议] 1. 在密码字段输入SSH密码");
+                logMessage("[建议] 2. 或配置SSH密钥认证");
+                logMessage("[说明] 家庭版的系统SSH连接可能不稳定，建议避免使用");
+                
+                // Windows家庭版：直接提示用户配置认证方式，避免使用系统SSH
+                testConnectionButton->setText("测试连接");
+                testConnectionButton->setEnabled(true);
+                return;
+            } else {
+                logMessage("[兼容性] 检测到Windows 专业版/企业版，启用标准兼容性模式");
+            }
+        }
+        
         program = "ssh";
-        arguments << "-o" << "ConnectTimeout=10"
+        arguments << "-o" << QString("ConnectTimeout=%1").arg(isWin11 ? "20" : "10") // Win11增加超时
                   << "-o" << "StrictHostKeyChecking=no"
                   << "-o" << "UserKnownHostsFile=/dev/null"
                   << "-o" << "BatchMode=yes"
-                  << "-p" << QString::number(port)
+                  << "-o" << "LogLevel=ERROR";  // 减少日志输出
+        
+        // Windows 11特殊参数
+        if (isWin11) {
+            arguments << "-o" << "ServerAliveInterval=30"
+                      << "-o" << "ServerAliveCountMax=3";
+        }
+        
+        arguments << "-p" << QString::number(port)
                   << QString("%1@%2").arg(username).arg(ip)
                   << "echo 'SSH连接测试成功'";
         
-        logMessage("[提示] 如果连接失败，请配置密码或SSH密钥认证");
+        if (isWin11) {
+            logMessage("[提示] Windows 11用户：如果仍然出现WSA错误，建议配置密码或SSH密钥认证");
+        } else {
+            logMessage("[提示] 如果连接失败，请配置密码或SSH密钥认证");
+        }
     }
     
     testProcess->setProcessEnvironment(env);
     
-    // 设置10秒超时
-    QTimer::singleShot(10000, this, [this](){
+    // 动态设置超时时间 - Windows 11需要更长时间
+    QSysInfo::WinVersion winVersion = QSysInfo::windowsVersion();
+    bool isWin11 = (winVersion >= QSysInfo::WV_WINDOWS10);
+    int timeout = isWin11 ? 25000 : 10000; // Win11: 25秒, 其他: 10秒
+    
+    QTimer::singleShot(timeout, this, [this, isWin11](){
         if (testProcess && testProcess->state() == QProcess::Running) {
             testProcess->kill();
-            logMessage("[错误] 连接测试超时，请检查网络和服务器设置");
+            if (isWin11) {
+                logMessage("[错误] 连接测试超时，Windows 11兼容性提示：");
+                logMessage("        1. 这可能是Windows 11的SSH兼容性问题");
+                logMessage("        2. 建议配置密码或SSH密钥认证");
+                logMessage("        3. 或跳过测试连接直接进行操作");
+            } else {
+                logMessage("[错误] 连接测试超时，请检查网络和服务器设置");
+            }
             testConnectionButton->setText("测试连接");
             testConnectionButton->setEnabled(true);
         }
     });
+
     
     testProcess->start(program, arguments);
 }
@@ -1016,6 +1125,7 @@ void MainWindow::onUploadFinished(int exitCode, QProcess::ExitStatus exitStatus)
     upgrade7evEmmcButton->setEnabled(true);
     upgrade7evSdButton->setEnabled(true);
     upgradeKu5pButton->setEnabled(true);
+    upgradePatchButton->setEnabled(true);
     cancelButton->setVisible(false);
     transferProgressBar->setVisible(false);  // 隐藏传输进度条
     
@@ -1063,6 +1173,9 @@ void MainWindow::onUploadFinished(int exitCode, QProcess::ExitStatus exitStatus)
         uploadProcess->deleteLater();
         uploadProcess = nullptr;
     }
+    
+    // 清理临时解密文件
+    cleanupTempDecryptedFile();
 }
 
 void MainWindow::onUploadProgress()
@@ -1127,6 +1240,9 @@ void MainWindow::onCancelUpload()
         uploadProcess->waitForFinished(1000);
         uploadProcess->deleteLater();
         uploadProcess = nullptr;
+        
+        // 清理临时解密文件
+        cleanupTempDecryptedFile();
     }
 }
 
@@ -1160,6 +1276,9 @@ void MainWindow::onUploadTimeout()
         uploadProcess->waitForFinished(1000);
         uploadProcess->deleteLater();
         uploadProcess = nullptr;
+        
+        // 清理临时解密文件
+        cleanupTempDecryptedFile();
     }
 }
 
@@ -1238,6 +1357,8 @@ void MainWindow::onTestFinished(int exitCode, QProcess::ExitStatus exitStatus)
             logMessage(QString("[输出] %1").arg(output.trimmed()));
         }
         
+
+        
         // 提供详细的解决方案
         if (error.contains("Permission denied") || error.contains("Authentication failed")) {
             bool hasSSHKey = checkSSHKeyExists();
@@ -1302,7 +1423,7 @@ void MainWindow::onMenuAction()
                 "文件上传工具\n\n"
                 "开发者：Chency\n"
                 "邮箱：121888719@qq.com\n\n"
-                "版本：V1.0");
+                "版本：V1.1");
         }
     }
 }
@@ -1383,6 +1504,82 @@ bool MainWindow::validateSettings()
     if (!QFile::exists(selectedFilePath)) {
         QMessageBox::warning(this, "文件错误", "选择的文件不存在");
         return false;
+    }
+    
+    // 显示当前使用的认证方式
+    if (lastSuccessfulAuthMethod == "NoAuth") {
+        logMessage("[认证] 使用无密码认证方式");
+    } else if (lastSuccessfulAuthMethod == "SSHKey") {
+        logMessage("[认证] 使用SSH密钥认证，无需密码");
+    } else if (lastSuccessfulAuthMethod == "Password") {
+        logMessage("[认证] 使用密码认证");
+    } else if (lastSuccessfulAuthMethod == "Mixed") {
+        logMessage("[认证] 使用混合认证方式（SSH密钥+密码）");
+    } else {
+        if (hasSSHKey) {
+            logMessage("[认证] 使用SSH密钥认证，无需密码");
+        } else {
+            logMessage("[认证] 使用密码认证");
+        }
+    }
+    
+    return true;
+}
+
+bool MainWindow::validateConnectionSettings()
+{
+    if (ipLineEdit->text().isEmpty()) {
+        QMessageBox::warning(this, "设置错误", "请输入服务器IP地址");
+        ipLineEdit->setFocus();
+        return false;
+    }
+    
+    if (usernameLineEdit->text().isEmpty()) {
+        QMessageBox::warning(this, "设置错误", "请输入用户名");
+        usernameLineEdit->setFocus();
+        return false;
+    }
+    
+    // 检查认证方式：SSH密钥、密码或之前测试成功的无认证连接
+    bool hasSSHKey = checkSSHKeyExists();
+    QString password = passwordLineEdit->text();
+    
+    // 如果之前连接测试成功且使用的是无认证方式，则允许继续
+    if (lastSuccessfulAuthMethod == "NoAuth") {
+        logMessage("[认证] 使用之前测试成功的无认证连接方式");
+        return true;
+    }
+    
+    if (!hasSSHKey && password.isEmpty() && lastSuccessfulAuthMethod == "None") {
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle("认证设置");
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setText("需要配置认证方式才能连接服务器。");
+        msgBox.setInformativeText("请选择以下任一认证方式：");
+        
+        QPushButton *testButton = msgBox.addButton("先测试连接", QMessageBox::ActionRole);
+        QPushButton *sshKeyButton = msgBox.addButton("配置SSH密钥（推荐）", QMessageBox::ActionRole);
+        QPushButton *passwordButton = msgBox.addButton("输入密码", QMessageBox::ActionRole);
+        msgBox.addButton("取消", QMessageBox::RejectRole);
+        
+        msgBox.exec();
+        
+        if (msgBox.clickedButton() == testButton) {
+            // 建议用户先测试连接
+            QMessageBox::information(this, "建议", 
+                "请先点击'测试连接'按钮验证服务器连接。\n"
+                "如果连接成功，即可直接进行文件传输操作。");
+            return false;
+        } else if (msgBox.clickedButton() == sshKeyButton) {
+            // 打开SSH密钥管理
+            onManageSSHKeys();
+            return false; // 需要用户先配置SSH密钥
+        } else if (msgBox.clickedButton() == passwordButton) {
+            passwordLineEdit->setFocus();
+            return false; // 需要用户输入密码
+        } else {
+            return false; // 用户取消
+        }
     }
     
     // 显示当前使用的认证方式
@@ -1712,6 +1909,54 @@ void MainWindow::onToggleBuiltinCommandView()
     adjustSize();
 }
 
+void MainWindow::onToggleFileSelectionView()
+{
+    bool isVisible = fileGroup->isVisible();
+    
+    // 切换文件选择栏的显示状态
+    fileGroup->setVisible(!isVisible);
+    
+    // 更新菜单项文本和状态
+    if (!isVisible) {
+        toggleFileSelectionAction->setText("隐藏文件选择与上传栏(&F)");
+        toggleFileSelectionAction->setChecked(true);
+        logMessage("文件选择与上传栏已显示");
+    } else {
+        toggleFileSelectionAction->setText("显示文件选择与上传栏(&F)");
+        toggleFileSelectionAction->setChecked(false);
+        logMessage("文件选择与上传栏已隐藏");
+    }
+    
+    // 调整窗口大小以适应新布局
+    adjustSize();
+}
+
+void MainWindow::onToggleSettingsView()
+{
+    bool isCurrentlyOpen = (settingsDialog && settingsDialog->isVisible());
+    
+    if (!isCurrentlyOpen) {
+        // 显示设置窗口
+        onOpenSettings();
+        // 使用定时器延迟检查，确保对话框已经完全显示
+        QTimer::singleShot(100, this, [this]() {
+            if (settingsDialog && settingsDialog->isVisible()) {
+                toggleSettingsAction->setText("隐藏设置窗口(&S)");
+                toggleSettingsAction->setChecked(true);
+                logMessage("设置窗口已显示");
+            }
+        });
+    } else {
+        // 隐藏设置窗口
+        if (settingsDialog) {
+            settingsDialog->reject(); // 关闭设置对话框
+        }
+        toggleSettingsAction->setText("显示设置窗口(&S)");
+        toggleSettingsAction->setChecked(false);
+        logMessage("设置窗口已隐藏");
+    }
+}
+
 QString MainWindow::getLogFilePath()
 {
     // 使用设置中的日志存储路径，如果为空则使用可执行程序目录
@@ -1765,6 +2010,152 @@ QString MainWindow::calculateFileMD5(const QString &filePath)
     }
     
     return QString();
+}
+
+// 加密文件解密功能
+bool MainWindow::decryptPackageFile(const QString &encryptedPath, const QString &outputPath)
+{
+    // 私钥，与加密工具保持一致
+    const QString PRIVATE_KEY = "ChencyUe2025_680Package";
+    
+    QFile inputFile(encryptedPath);
+    if (!inputFile.open(QIODevice::ReadOnly)) {
+        logMessage(QString("[错误] 无法打开加密文件: %1").arg(encryptedPath));
+        return false;
+    }
+    
+    // 读取并验证文件头
+    QByteArray header = inputFile.read(8);
+    if (header != "680ENC01") {
+        inputFile.close();
+        logMessage("[错误] 文件不是有效的加密升级包文件");
+        return false;
+    }
+    
+    // 读取原始文件大小
+    QByteArray sizeBytes = inputFile.read(sizeof(qint64));
+    qint64 originalSize = *((qint64*)sizeBytes.constData());
+    
+    // 读取MD5校验值
+    QByteArray expectedChecksum = inputFile.read(16);
+    
+    // 读取加密数据
+    QByteArray encryptedData = inputFile.readAll();
+    inputFile.close();
+    
+    logMessage(QString("加密文件大小: %1 字节, 原始文件大小: %2 字节").arg(encryptedData.size()).arg(originalSize));
+    
+    // 计算私钥的MD5哈希作为混合密钥
+    QCryptographicHash keyHash(QCryptographicHash::Md5);
+    keyHash.addData(PRIVATE_KEY.toUtf8());
+    QByteArray keyHashBytes = keyHash.result();
+    
+    // 解密数据
+    QByteArray decryptedData;
+    const int BLOCK_SIZE = 65536;
+    int processedSize = 0;
+    qint64 totalEncryptedSize = encryptedData.size();
+    
+    while (processedSize < totalEncryptedSize) {
+        int blockSize = qMin((qint64)BLOCK_SIZE, totalEncryptedSize - processedSize);
+        QByteArray block = encryptedData.mid(processedSize, blockSize);
+        
+        // 解密块
+        int offset = decryptedData.size();
+        for (int i = 0; i < block.size(); i++) {
+            unsigned char encByte = block[i];
+            unsigned char keyByte = keyHashBytes[(i + offset) % keyHashBytes.size()];
+            
+            // 逆向步骤3：位置相关异或
+            unsigned char unxored = encByte ^ ((offset + i) % 256);
+            
+            // 逆向步骤2：位移逆变换
+            int shift = (offset + i) % 7 + 1;
+            unsigned char unshifted = ((unxored >> shift) | (unxored << (8 - shift))) & 0xFF;
+            
+            // 逆向步骤1：私钥混合逆变换
+            int temp = (unshifted - keyByte + 256) % 256;
+            block[i] = temp ^ keyByte;
+        }
+        
+        decryptedData.append(block);
+        processedSize += blockSize;
+        
+        // 更新进度
+        int progress = (int)((processedSize * 100) / totalEncryptedSize);
+        if (progress % 20 == 0) {
+            logMessage(QString("解密进度: %1%").arg(progress));
+        }
+    }
+    
+    // 截取到原始大小
+    decryptedData = decryptedData.left(originalSize);
+    
+    // 验证MD5校验值
+    QCryptographicHash md5(QCryptographicHash::Md5);
+    md5.addData(decryptedData);
+    QByteArray actualChecksum = md5.result();
+    
+    if (actualChecksum != expectedChecksum) {
+        logMessage("[错误] 文件校验失败，加密文件可能已损坏或密钥不匹配");
+        return false;
+    }
+    
+    logMessage("[成功] 文件校验通过");
+    
+    // 写入解密后的文件
+    QFile outputFile(outputPath);
+    if (!outputFile.open(QIODevice::WriteOnly)) {
+        logMessage(QString("[错误] 无法创建临时解密文件: %1").arg(outputPath));
+        return false;
+    }
+    
+    outputFile.write(decryptedData);
+    outputFile.close();
+    
+    logMessage(QString("[成功] 文件解密完成: %1").arg(outputPath));
+    return true;
+}
+
+QString MainWindow::createTempDecryptedFile(const QString &encryptedPath)
+{
+    // 生成临时文件路径
+    QFileInfo fileInfo(encryptedPath);
+    QString baseName = fileInfo.completeBaseName();
+    
+    // 如果文件名以.enc结尾，去掉.enc后缀
+    if (baseName.endsWith(".enc", Qt::CaseInsensitive)) {
+        baseName = baseName.left(baseName.length() - 4);
+    }
+    
+    // 创建临时目录
+    QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    QString tempFilePath = tempDir + "/" + baseName;
+    
+    logMessage(QString("开始解密升级包: %1").arg(fileInfo.fileName()));
+    logMessage(QString("临时解密文件: %1").arg(tempFilePath));
+    
+    // 解密文件
+    if (decryptPackageFile(encryptedPath, tempFilePath)) {
+        tempDecryptedFilePath = tempFilePath;
+        originalEncryptedPath = encryptedPath;
+        return tempFilePath;
+    }
+    
+    return QString();
+}
+
+void MainWindow::cleanupTempDecryptedFile()
+{
+    if (!tempDecryptedFilePath.isEmpty() && QFile::exists(tempDecryptedFilePath)) {
+        if (QFile::remove(tempDecryptedFilePath)) {
+            logMessage(QString("已清理临时解密文件: %1").arg(tempDecryptedFilePath));
+        } else {
+            logMessage(QString("[警告] 无法删除临时解密文件: %1").arg(tempDecryptedFilePath));
+        }
+        tempDecryptedFilePath.clear();
+        originalEncryptedPath.clear();
+    }
 }
 
 void MainWindow::startFileVerification()
@@ -1828,6 +2219,7 @@ void MainWindow::onVerifyFileFinished(int exitCode, QProcess::ExitStatus exitSta
     upgrade7evEmmcButton->setEnabled(true);
     upgrade7evSdButton->setEnabled(true);
     upgradeKu5pButton->setEnabled(true);
+    upgradePatchButton->setEnabled(true);
     cancelButton->setVisible(false);
     //transferProgressBar->setVisible(false);  // 隐藏传输进度条
     
@@ -1991,6 +2383,43 @@ void MainWindow::onVerifyFileFinished(int exitCode, QProcess::ExitStatus exitSta
                             // 重置标志位
                             isKu5pUpgradeFile = false;
                         }
+                        // 如果是升级补丁包，执行升级操作
+                        else if (isPatchUpgradeFile) {
+                            logMessage("开始执行升级补丁操作...");
+                            statusLabel->setText("正在执行升级补丁");
+                            
+                            // 显示进度条
+                            transferProgressBar->setVisible(true);
+                            transferProgressBar->setValue(0);
+                            transferProgressBar->setFormat("升级补丁中 %p%");
+                            
+                            // 构建源文件路径
+                            QString sourceDir = remoteDirectory.trimmed();
+                            if (!sourceDir.endsWith('/')) {
+                                sourceDir += '/';
+                            }
+                            
+                            // 构建升级命令
+                            QString command = QString(
+                                "cd %1 && "
+                                "echo '开始升级补丁...' && "
+                                "if [ ! -f updatepackage.tar.gz ]; then "
+                                "  echo 'updatepackage.tar.gz not found'; "
+                                "  exit 1; "
+                                "fi && "
+                                "echo '解压升级补丁包到/root目录...' && "
+                                "tar -xzf updatepackage.tar.gz -C /root && "
+                                "echo '同步数据到磁盘...' && "
+                                "sync && "
+                                "echo '升级补丁完成'")
+                                .arg(sourceDir);
+                            
+                            // 执行升级命令
+                            executePatchRemoteCommand(command);
+                            
+                            // 重置标志位
+                            isPatchUpgradeFile = false;
+                        }
                         else {
                             QMessageBox::information(this, "上传成功", 
                                 QString("文件 %1 已成功上传到服务器并通过MD5校验\n"
@@ -2150,7 +2579,7 @@ void MainWindow::onShowMachineCode()
 
 void MainWindow::onUpgradeQtSoftware()
 {
-    if (!validateSettings()) {
+    if (!validateConnectionSettings()) {
         return;
     }
     
@@ -2165,11 +2594,11 @@ void MainWindow::onUpgradeQtSoftware()
         return;
     }
 
-    // 选择要上传的文件
+    // 选择要上传的加密文件
     QString filePath = QFileDialog::getOpenFileName(this,
-        "选择Qt升级包",
+        "选择Qt升级包(加密)",
         QDir::currentPath(),
-        "Qt升级包 (qt_update.tar.gz);;所有文件 (*)");
+        "加密Qt升级包 (qt_update.tar.gz.enc);;所有文件 (*)");
 
     if (filePath.isEmpty()) {
         logMessage("用户取消了文件选择");
@@ -2178,9 +2607,9 @@ void MainWindow::onUpgradeQtSoftware()
 
     // 检查文件名是否正确
     QFileInfo fileInfo(filePath);
-    if (fileInfo.fileName() != "qt_update.tar.gz") {
+    if (fileInfo.fileName() != "qt_update.tar.gz.enc") {
         QMessageBox::warning(this, "文件错误", 
-            "请选择正确的Qt升级包文件：qt_update.tar.gz");
+            "请选择正确的加密Qt升级包文件：qt_update.tar.gz.enc");
         logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
         return;
     }
@@ -2195,8 +2624,18 @@ void MainWindow::onUpgradeQtSoftware()
     }
     file.close();
 
-    // 保存选择的文件路径
-    selectedFilePath = filePath;
+    // 解密文件到临时目录
+    logMessage("开始解密Qt升级包...");
+    QString decryptedPath = createTempDecryptedFile(filePath);
+    if (decryptedPath.isEmpty()) {
+        QMessageBox::critical(this, "解密失败", 
+            "无法解密升级包文件，请检查文件是否有效。");
+        return;
+    }
+
+    // 保存解密后的文件路径用于上传
+    selectedFilePath = decryptedPath;
+    fileInfo = QFileInfo(decryptedPath);
     
     // 构建源文件路径
     QString sourceDir = remoteDirectory.trimmed();
@@ -2245,7 +2684,7 @@ void MainWindow::onUpgradeQtSoftware()
 
 void MainWindow::onUpgrade7evEmmc()
 {
-    if (!validateSettings()) {
+    if (!validateConnectionSettings()) {
         return;
     }
     
@@ -2270,11 +2709,11 @@ void MainWindow::onUpgrade7evEmmc()
         return;
     }
 
-    // 选择要上传的文件
+    // 选择要上传的加密文件
     QString filePath = QFileDialog::getOpenFileName(this,
-        "选择7ev固件升级包",
+        "选择7ev固件升级包(加密)",
         QDir::currentPath(),
-        "7ev固件升级包 (boots.tar.gz);;所有文件 (*)");
+        "加密7ev固件升级包 (boots.tar.gz.enc);;所有文件 (*)");
 
     if (filePath.isEmpty()) {
         logMessage("用户取消了文件选择");
@@ -2283,9 +2722,9 @@ void MainWindow::onUpgrade7evEmmc()
 
     // 检查文件名是否正确
     QFileInfo fileInfo(filePath);
-    if (fileInfo.fileName() != "boots.tar.gz") {
+    if (fileInfo.fileName() != "boots.tar.gz.enc") {
         QMessageBox::warning(this, "文件错误", 
-            "请选择正确的7ev固件升级包文件：boots.tar.gz");
+            "请选择正确的加密7ev固件升级包文件：boots.tar.gz.enc");
         logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
         return;
     }
@@ -2300,8 +2739,18 @@ void MainWindow::onUpgrade7evEmmc()
     }
     file.close();
 
-    // 保存选择的文件路径
-    selectedFilePath = filePath;
+    // 解密文件到临时目录
+    logMessage("开始解密7ev EMMC升级包...");
+    QString decryptedPath = createTempDecryptedFile(filePath);
+    if (decryptedPath.isEmpty()) {
+        QMessageBox::critical(this, "解密失败", 
+            "无法解密升级包文件，请检查文件是否有效。");
+        return;
+    }
+
+    // 保存解密后的文件路径用于上传
+    selectedFilePath = decryptedPath;
+    fileInfo = QFileInfo(decryptedPath);
     
     // 构建源文件路径
     QString sourceDir = remoteDirectory.trimmed();
@@ -2316,7 +2765,7 @@ void MainWindow::onUpgrade7evEmmc()
     int ret = QMessageBox::question(this, "确认7ev EMMC升级", 
         QString("即将在远程服务器上执行7ev EMMC固件升级操作：\n\n"
         "执行步骤：\n"
-        "1. 上传固件文件：%1\n"
+        "1. 解密并上传固件文件：%1\n"
         "2. 检查并处理已有挂载状态\n"
         "3. 挂载 %2 到 %3\n"
         "4. 检查 %4 文件是否存在\n"
@@ -2325,7 +2774,7 @@ void MainWindow::onUpgrade7evEmmc()
         "7. 执行 sync 同步数据到磁盘\n\n"
         "注意：此操作将替换EMMC固件文件，请确认：\n"
         "• 已备份重要数据\n"
-        "• boots.tar.gz 文件完整有效\n"
+        "• boots.tar.gz.enc 文件完整有效\n"
         "• 升级过程中不要断电\n\n"
         "是否继续执行7ev EMMC升级操作？")
         .arg(fileInfo.fileName())
@@ -2357,7 +2806,7 @@ void MainWindow::onUpgrade7evEmmc()
 
 void MainWindow::onUpgrade7evSd()
 {
-    if (!validateSettings()) {
+    if (!validateConnectionSettings()) {
         return;
     }
     
@@ -2382,11 +2831,11 @@ void MainWindow::onUpgrade7evSd()
         return;
     }
 
-    // 选择要上传的文件
+    // 选择要上传的加密文件
     QString filePath = QFileDialog::getOpenFileName(this,
-        "选择7ev固件升级包",
+        "选择7ev固件升级包(加密)",
         QDir::currentPath(),
-        "7ev固件升级包 (boots.tar.gz);;所有文件 (*)");
+        "加密7ev固件升级包 (boots.tar.gz.enc);;所有文件 (*)");
 
     if (filePath.isEmpty()) {
         logMessage("用户取消了文件选择");
@@ -2395,9 +2844,9 @@ void MainWindow::onUpgrade7evSd()
 
     // 检查文件名是否正确
     QFileInfo fileInfo(filePath);
-    if (fileInfo.fileName() != "boots.tar.gz") {
+    if (fileInfo.fileName() != "boots.tar.gz.enc") {
         QMessageBox::warning(this, "文件错误", 
-            "请选择正确的7ev固件升级包文件：boots.tar.gz");
+            "请选择正确的加密7ev固件升级包文件：boots.tar.gz.enc");
         logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
         return;
     }
@@ -2412,8 +2861,18 @@ void MainWindow::onUpgrade7evSd()
     }
     file.close();
 
-    // 保存选择的文件路径
-    selectedFilePath = filePath;
+    // 解密文件到临时目录
+    logMessage("开始解密7ev SD卡升级包...");
+    QString decryptedPath = createTempDecryptedFile(filePath);
+    if (decryptedPath.isEmpty()) {
+        QMessageBox::critical(this, "解密失败", 
+            "无法解密升级包文件，请检查文件是否有效。");
+        return;
+    }
+
+    // 保存解密后的文件路径用于上传
+    selectedFilePath = decryptedPath;
+    fileInfo = QFileInfo(decryptedPath);
     
     // 构建源文件路径
     QString sourceDir = remoteDirectory.trimmed();
@@ -2428,7 +2887,7 @@ void MainWindow::onUpgrade7evSd()
     int ret = QMessageBox::question(this, "确认7ev SD卡升级", 
         QString("即将在远程服务器上执行7ev SD卡固件升级操作：\n\n"
         "执行步骤：\n"
-        "1. 上传固件文件：%1\n"
+        "1. 解密并上传固件文件：%1\n"
         "2. 检查并处理已有挂载状态\n"
         "3. 挂载 %2 到 %3\n"
         "4. 检查 %4 文件是否存在\n"
@@ -2437,7 +2896,7 @@ void MainWindow::onUpgrade7evSd()
         "7. 执行 sync 同步数据到磁盘\n\n"
         "注意：此操作将替换SD卡固件文件，请确认：\n"
         "• 已备份重要数据\n"
-        "• boots.tar.gz 文件完整有效\n"
+        "• boots.tar.gz.enc 文件完整有效\n"
         "• 升级过程中不要断电\n\n"
         "是否继续执行7ev SD卡升级操作？")
         .arg(fileInfo.fileName())
@@ -2469,7 +2928,7 @@ void MainWindow::onUpgrade7evSd()
 
 void MainWindow::onUpgradeKu5p()
 {
-    if (!validateSettings()) {
+    if (!validateConnectionSettings()) {
         return;
     }
     
@@ -2494,11 +2953,11 @@ void MainWindow::onUpgradeKu5p()
         return;
     }
 
-    // 选择要上传的文件
+    // 选择要上传的加密文件
     QString filePath = QFileDialog::getOpenFileName(this,
-        "选择KU5P固件升级包",
+        "选择KU5P固件升级包(加密)",
         QDir::currentPath(),
-        "KU5P固件升级包 (ku5p_package.tar.gz);;所有文件 (*)");
+        "加密KU5P固件升级包 (ku5p_package.tar.gz.enc);;所有文件 (*)");
 
     if (filePath.isEmpty()) {
         logMessage("用户取消了文件选择");
@@ -2507,9 +2966,9 @@ void MainWindow::onUpgradeKu5p()
 
     // 检查文件名是否正确
     QFileInfo fileInfo(filePath);
-    if (fileInfo.fileName() != "ku5p_package.tar.gz") {
+    if (fileInfo.fileName() != "ku5p_package.tar.gz.enc") {
         QMessageBox::warning(this, "文件错误", 
-            "请选择正确的KU5P升级包文件：ku5p_package.tar.gz");
+            "请选择正确的加密KU5P升级包文件：ku5p_package.tar.gz.enc");
         logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
         return;
     }
@@ -2524,8 +2983,18 @@ void MainWindow::onUpgradeKu5p()
     }
     file.close();
 
-    // 保存选择的文件路径
-    selectedFilePath = filePath;
+    // 解密文件到临时目录
+    logMessage("开始解密KU5P升级包...");
+    QString decryptedPath = createTempDecryptedFile(filePath);
+    if (decryptedPath.isEmpty()) {
+        QMessageBox::critical(this, "解密失败", 
+            "无法解密升级包文件，请检查文件是否有效。");
+        return;
+    }
+
+    // 保存解密后的文件路径用于上传
+    selectedFilePath = decryptedPath;
+    fileInfo = QFileInfo(decryptedPath);
     
     // 构建源文件路径
     QString sourceDir = remoteDirectory.trimmed();
@@ -2539,7 +3008,7 @@ void MainWindow::onUpgradeKu5p()
     // 确认对话框
     int ret = QMessageBox::question(this, "确认升级", 
         QString("即将在远程服务器上执行KU5P固件升级操作：\n\n"
-        "1. 上传文件：%1\n"
+        "1. 解密并上传文件：%1\n"
         "2. 工作目录：%2\n"
         "3. 挂载设备：%3 到 %4\n"
         "4. 执行命令：tar -xzvf ku5p_package.tar.gz -C %4 && sync\n\n"
@@ -2572,6 +3041,117 @@ void MainWindow::onUpgradeKu5p()
     
     // 设置标志位
     isKu5pUpgradeFile = true;
+    
+    // 开始上传文件
+    startUpload();
+}
+
+void MainWindow::onUpgradePatch()
+{
+    if (!validateConnectionSettings()) {
+        return;
+    }
+    
+    // 检查是否有进程正在运行
+    if (uploadProcess && uploadProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "请等待当前操作完成后再执行升级补丁操作！");
+        return;
+    }
+    
+    if (remoteCommandProcess && remoteCommandProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "远程命令正在执行中，请稍等...");
+        return;
+    }
+    
+    if (upgradePatchProcess && upgradePatchProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "升级补丁正在执行中，请稍等...");
+        return;
+    }
+
+    // 选择要上传的加密文件
+    QString filePath = QFileDialog::getOpenFileName(this,
+        "选择升级补丁包(加密)",
+        QDir::currentPath(),
+        "加密升级补丁包 (updatepackage.tar.gz.enc);;所有文件 (*)");
+
+    if (filePath.isEmpty()) {
+        logMessage("用户取消了文件选择");
+        return;
+    }
+
+    // 检查文件名是否正确
+    QFileInfo fileInfo(filePath);
+    if (fileInfo.fileName() != "updatepackage.tar.gz.enc") {
+        QMessageBox::warning(this, "文件错误", 
+            "请选择正确的加密升级补丁包文件：updatepackage.tar.gz.enc");
+        logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
+        return;
+    }
+
+    // 检查文件是否存在且可读
+    QFile file(filePath);
+    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "文件错误", 
+            "无法读取选择的文件，请确保文件存在且有读取权限。");
+        logMessage("无法读取文件：" + filePath);
+        return;
+    }
+    file.close();
+
+    // 解密文件到临时目录
+    logMessage("开始解密升级补丁包...");
+    QString decryptedPath = createTempDecryptedFile(filePath);
+    if (decryptedPath.isEmpty()) {
+        QMessageBox::critical(this, "解密失败", 
+            "无法解密升级包文件，请检查文件是否有效。");
+        return;
+    }
+
+    // 保存解密后的文件路径用于上传
+    selectedFilePath = decryptedPath;
+    fileInfo = QFileInfo(decryptedPath);
+    
+    // 构建源文件路径
+    QString sourceDir = remoteDirectory.trimmed();
+    if (!sourceDir.endsWith('/')) {
+        sourceDir += '/';
+    }
+    QString sourceFile = sourceDir + "updatepackage.tar.gz";
+    
+    // 确认对话框
+    int ret = QMessageBox::question(this, "确认升级补丁", 
+        QString("即将在远程服务器上执行升级补丁操作：\n\n"
+        "1. 解密并上传文件：%1\n"
+        "2. 工作目录：%2\n"
+        "3. 目标目录：/root\n"
+        "4. 执行命令：tar -xzf updatepackage.tar.gz -C /root && sync\n\n"
+        "说明：\n"
+        "1. 从 %3 传输升级补丁包到远程服务器\n"
+        "2. 解压updatepackage.tar.gz到/root目录\n"
+        "3. 执行sync命令同步数据到磁盘\n\n"
+        "注意：此操作将解压并覆盖/root目录中的文件，请确认无误后继续。\n\n"
+        "是否继续执行升级补丁操作？")
+        .arg(fileInfo.fileName())
+        .arg(sourceDir)
+        .arg(sourceFile),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
+    
+    if (ret != QMessageBox::Yes) {
+        logMessage("用户取消了升级补丁操作");
+        return;
+    }
+    
+    logMessage("开始执行升级补丁操作...");
+    logMessage("操作步骤：1. 上传补丁包  2. 解压到/root目录  3. 同步数据到磁盘");
+    statusLabel->setText("正在上传升级补丁包");
+    transferProgressBar->setVisible(true);
+    
+    // 禁用所有操作按钮
+    disableAllOperationButtons();
+    
+    // 设置标志位
+    isPatchUpgradeFile = true;
     
     // 开始上传文件
     startUpload();
@@ -3295,7 +3875,7 @@ void MainWindow::onExecuteCustomCommand()
         return;
     }
     
-    if (!validateSettings()) {
+    if (!validateConnectionSettings()) {
         commandOutputEdit->append("<span style='color: #ff6b6b;'>[错误] 请先配置服务器连接信息</span>");
         return;
     }
@@ -3432,6 +4012,11 @@ void MainWindow::onOpenSettings()
 {
     if (!settingsDialog) {
         settingsDialog = new SettingsDialog(this);
+        // 连接设置对话框完成信号，以更新菜单状态
+        connect(settingsDialog, &QDialog::finished, this, [this]() {
+            toggleSettingsAction->setChecked(false);
+            toggleSettingsAction->setText("显示设置窗口(&S)");
+        });
     }
     
     // 将当前设置加载到对话框
@@ -3931,6 +4516,238 @@ void MainWindow::executeKu5pRemoteCommand(const QString &command)
     }
 }
 
+void MainWindow::executePatchRemoteCommand(const QString &command)
+{
+    if (upgradePatchProcess) {
+        upgradePatchProcess->kill();
+        upgradePatchProcess->waitForFinished(1000);
+        upgradePatchProcess->deleteLater();
+        upgradePatchProcess = nullptr;
+    }
+    
+    upgradePatchProcess = new QProcess(this);
+    
+    // 显示进度条
+    transferProgressBar->setVisible(true);
+    transferProgressBar->setValue(0);
+    transferProgressBar->setFormat("升级补丁中 %p%");
+    
+    // 连接信号
+    connect(upgradePatchProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this](int exitCode, QProcess::ExitStatus exitStatus) {
+                
+        transferProgressBar->setVisible(false);
+        
+        // 恢复所有操作按钮
+        enableAllOperationButtons();
+        
+        if (exitStatus == QProcess::NormalExit && exitCode == 0) {
+            QString output = upgradePatchProcess->readAllStandardOutput();
+            QString error = upgradePatchProcess->readAllStandardError();
+            
+            logMessage("[成功] 升级补丁操作执行完成！");
+            if (!output.isEmpty()) {
+                logMessage(QString("[输出] %1").arg(output.trimmed()));
+            }
+            if (!error.isEmpty()) {
+                logMessage(QString("[信息] %1").arg(error.trimmed()));
+            }
+            
+            statusLabel->setText("升级补丁完成");
+            statusBar()->showMessage("升级补丁操作成功完成", 3000);
+            
+            QMessageBox::information(this, "升级补丁成功", 
+                QString("升级补丁操作已成功完成！\n\n"
+                "完成的操作：\n"
+                "1. ✓ 检查 updatepackage.tar.gz 文件\n"
+                "2. ✓ 解压到 /root 目录\n"
+                "3. ✓ 同步数据到磁盘\n\n"
+                "升级补丁详情请查看操作日志。"));
+        } else {
+            QString error = upgradePatchProcess->readAllStandardError();
+            QString output = upgradePatchProcess->readAllStandardOutput();
+            
+            if (output.contains("updatepackage.tar.gz not found") || error.contains("updatepackage.tar.gz not found")) {
+                QString sourceDir = remoteDirectory.trimmed();
+                if (!sourceDir.endsWith('/')) {
+                    sourceDir += '/';
+                }
+                QString sourceFile = sourceDir + "updatepackage.tar.gz";
+                
+                logMessage(QString("[错误] 升级补丁失败：%1 文件不存在").arg(sourceFile));
+                statusLabel->setText("补丁包不存在");
+                statusBar()->showMessage("补丁包不存在", 3000);
+                
+                QMessageBox::critical(this, "补丁包文件不存在", 
+                    QString("升级补丁失败！\n\n"
+                           "错误原因：在 %1 目录下找不到 updatepackage.tar.gz 补丁包文件\n\n"
+                           "解决方案：\n"
+                           "1. 请先上传 updatepackage.tar.gz 补丁包文件到 %1 目录\n"
+                           "2. 确认文件名为 updatepackage.tar.gz（区分大小写）\n"
+                           "3. 确认文件完整且未损坏\n"
+                           "4. 重新执行升级补丁操作")
+                    .arg(sourceDir));
+            } else if (output.contains("tar:") || error.contains("tar:")) {
+                logMessage("[错误] 升级补丁失败：补丁包解压失败");
+                statusLabel->setText("解压失败");
+                statusBar()->showMessage("解压失败", 3000);
+                
+                QMessageBox::critical(this, "解压失败", 
+                    QString("升级补丁失败！\n\n"
+                           "错误原因：updatepackage.tar.gz 文件解压失败，可能是文件损坏或格式错误\n\n"
+                           "解决方案：\n"
+                           "1. 检查 updatepackage.tar.gz 文件是否完整\n"
+                           "2. 确认文件是否为有效的 tar.gz 格式\n"
+                           "3. 检查 /root 目录是否有足够空间\n"
+                           "4. 重新下载或重新生成补丁包文件"));
+            } else {
+                logMessage(QString("[错误] 升级补丁失败 (退出码: %1)").arg(exitCode));
+                
+                if (!error.isEmpty()) {
+                    logMessage(QString("[错误信息] %1").arg(error.trimmed()));
+                }
+                if (!output.isEmpty()) {
+                    logMessage(QString("[输出信息] %1").arg(output.trimmed()));
+                }
+                
+                statusLabel->setText("升级补丁失败");
+                statusBar()->showMessage("升级补丁失败", 3000);
+                
+                QString sourceDir = remoteDirectory.trimmed();
+                if (!sourceDir.endsWith('/')) {
+                    sourceDir += '/';
+                }
+                
+                QMessageBox::warning(this, "升级补丁失败", 
+                    QString("升级补丁操作执行失败！\n\n"
+                           "错误信息：%1\n\n"
+                           "请检查：\n"
+                           "1. 服务器连接是否正常\n"
+                           "2. updatepackage.tar.gz 文件是否存在于 %2 目录\n"
+                           "3. 补丁包是否为有效的 tar.gz 格式\n"
+                           "4. /root 目录权限是否足够\n"
+                           "5. 网络连接是否稳定")
+                    .arg(error.isEmpty() ? "命令执行失败" : error.trimmed())
+                    .arg(sourceDir));
+            }
+        }
+        
+        if (upgradePatchProcess) {
+            upgradePatchProcess->deleteLater();
+            upgradePatchProcess = nullptr;
+        }
+    });
+    
+    // 连接输出信号，实时显示命令执行过程
+    connect(upgradePatchProcess, &QProcess::readyReadStandardOutput, 
+            this, [this]() {
+        QString output = upgradePatchProcess->readAllStandardOutput();
+        if (!output.isEmpty()) {
+            logMessage(QString("[升级补丁] %1").arg(output.trimmed()));
+            
+            // 更安全的进度监控
+            if (output.contains("开始升级补丁")) {
+                statusLabel->setText("升级补丁中 - 检查文件...");
+                transferProgressBar->setValue(10);
+            } else if (output.contains("解压升级补丁包") || output.contains("tar")) {
+                statusLabel->setText("升级补丁中 - 正在解压文件...");
+                transferProgressBar->setValue(50);
+            } else if (output.contains("同步数据") || output.contains("sync")) {
+                statusLabel->setText("升级补丁中 - 正在同步数据...");
+                transferProgressBar->setValue(80);
+            } else if (output.contains("升级补丁完成")) {
+                statusLabel->setText("升级补丁中 - 完成");
+                transferProgressBar->setValue(100);
+            }
+        }
+    });
+    
+    connect(upgradePatchProcess, &QProcess::readyReadStandardError, 
+            this, [this]() {
+        QString error = upgradePatchProcess->readAllStandardError();
+        if (!error.isEmpty()) {
+            logMessage(QString("[补丁信息] %1").arg(error.trimmed()));
+        }
+    });
+    
+    // 设置进程环境变量
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    upgradePatchProcess->setProcessEnvironment(env);
+    
+    // 构建SSH命令
+    QString program = "ssh";
+    QStringList arguments;
+    arguments << "-o" << "ConnectTimeout=30"
+              << "-o" << "StrictHostKeyChecking=no"
+              << "-o" << "UserKnownHostsFile=/dev/null"
+              << "-o" << "PreferredAuthentications=publickey,password"
+              << "-o" << "PubkeyAuthentication=yes"
+              << "-o" << "PasswordAuthentication=yes"
+              << "-o" << "BatchMode=yes"  // 非交互模式
+              << "-p" << QString::number(portSpinBox->value())
+              << QString("%1@%2").arg(usernameLineEdit->text()).arg(ipLineEdit->text())
+              << command;
+    
+    logMessage("开始执行升级补丁命令...");
+    
+    // 启动进程
+    upgradePatchProcess->start(program, arguments);
+    
+    // 设置升级超时检测（5分钟）
+    QTimer::singleShot(300000, this, [this](){
+        if (upgradePatchProcess && upgradePatchProcess->state() == QProcess::Running) {
+            logMessage("[警告] 升级补丁操作超时（5分钟），可能遇到问题");
+            logMessage("[系统] 正在强制终止升级补丁进程...");
+            
+            upgradePatchProcess->kill();
+            upgradePatchProcess->waitForFinished(3000);
+            
+            transferProgressBar->setVisible(false);
+            statusLabel->setText("升级补丁超时");
+            statusBar()->showMessage("升级补丁操作超时", 3000);
+            
+            // 恢复所有操作按钮
+            enableAllOperationButtons();
+            
+            QMessageBox::critical(this, "升级补丁超时", 
+                "升级补丁操作超时（5分钟）！\n\n"
+                "可能的原因：\n"
+                "1. 网络连接中断\n"
+                "2. 远程设备无响应\n"
+                "3. 补丁包过大导致解压时间过长\n"
+                "4. 目标目录空间不足\n\n"
+                "建议：\n"
+                "1. 检查网络连接\n"
+                "2. 检查远程设备状态\n"
+                "3. 检查 /root 目录可用空间\n"
+                "4. 重新尝试升级补丁操作");
+            
+            if (upgradePatchProcess) {
+                upgradePatchProcess->deleteLater();
+                upgradePatchProcess = nullptr;
+            }
+        }
+    });
+    
+    if (!upgradePatchProcess->waitForStarted(5000)) {
+        logMessage("[错误] 无法启动SSH进程");
+        logMessage("[提示] 请确保SSH密钥认证已正确配置");
+        transferProgressBar->setVisible(false);
+        statusLabel->setText("命令执行失败");
+        
+        // 恢复所有操作按钮
+        enableAllOperationButtons();
+        
+        QMessageBox::critical(this, "执行失败", 
+            "无法启动SSH进程。\n建议配置SSH密钥认证后重试。");
+        
+        if (upgradePatchProcess) {
+            upgradePatchProcess->deleteLater();
+            upgradePatchProcess = nullptr;
+        }
+    }
+}
+
 void MainWindow::disableAllOperationButtons()
 {
     // 禁用所有操作按钮
@@ -3941,6 +4758,7 @@ void MainWindow::disableAllOperationButtons()
     upgrade7evEmmcButton->setEnabled(false);
     upgrade7evSdButton->setEnabled(false);
     upgradeKu5pButton->setEnabled(false);
+    upgradePatchButton->setEnabled(false);
     executeCommandButton->setEnabled(false);
     clearLogButton->setEnabled(false);
     clearOutputButton->setEnabled(false);
@@ -3974,6 +4792,7 @@ void MainWindow::enableAllOperationButtons()
     upgrade7evEmmcButton->setEnabled(true);
     upgrade7evSdButton->setEnabled(true);
     upgradeKu5pButton->setEnabled(true);
+    upgradePatchButton->setEnabled(true);
     executeCommandButton->setEnabled(true);
     clearLogButton->setEnabled(true);
     clearOutputButton->setEnabled(true);
@@ -6420,3 +7239,4 @@ void MainWindow::onDisableSSHKey()
         "SSH密钥按键已被禁用。\n"
         "如需重新使用，请通过菜单重新启用。");
 }
+

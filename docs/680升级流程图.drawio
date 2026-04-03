@@ -1,0 +1,236 @@
+<mxfile host="65bd71144e">
+    <diagram name="680升级流程" id="0">
+        <mxGraphModel dx="1432" dy="1095" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="start" value="开始" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1f5fe;strokeColor=#01579b;strokeWidth=2;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="380" y="40" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="82" value="" style="edgeStyle=none;html=1;" edge="1" parent="1" source="step1" target="81">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="step1" value="查看设置页面中的图像机IP地址" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#4a148c;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="330" y="120" width="180" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="step2" value="图像机进入root管理员" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#4a148c;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="330" y="200" width="180" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="step3" value="Ctrl+R打开隐藏维护界面&lt;br&gt;点击图像机设置-进入后台升级" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#4a148c;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="280" width="260" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="step4" value="打开680SoftwareUpdate.exe&lt;br&gt;填写IP端口22用户名root" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#4a148c;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="370" width="260" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="step5" value="点击测试连接" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#4a148c;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="330" y="460" width="180" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="decision1" value="连接测试成功?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#e65100;strokeWidth=2;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="350" y="540" width="140" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="error1" value="检查图像机IP地址&lt;br&gt;配置电脑以太网" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffebee;strokeColor=#c62828;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="540" width="180" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="74" style="edgeStyle=none;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="10" target="20">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="-200" y="670"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="80" value="" style="edgeStyle=none;html=1;rounded=1;curved=0;strokeWidth=2;strokeColor=#808080;" edge="1" parent="1" source="decision2" target="79">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="decision2" value="选择升级类型" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#e65100;strokeWidth=2;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="350" y="640" width="140" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="upgrade1" value="7ev-emmc升级&lt;br&gt;选择boots.tar.gz" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e8;strokeColor=#2e7d32;strokeWidth=2;fontColor=#FF1515;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="750" width="140" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="upgrade2" value="7ev-sd卡升级&lt;br&gt;选择boots.tar.gz" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e8;strokeColor=#2e7d32;strokeWidth=2;fontColor=#FF1515;" vertex="1" parent="1">
+                    <mxGeometry x="280" y="750" width="140" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="upgrade3" value="点击升级qt软件&lt;br&gt;选择qt_update.tar.gz" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e8;strokeColor=#2e7d32;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="750" width="140" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="upgrade4" value="点击升级ku5p&lt;br&gt;选择ku5p_package.tar.gz" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e8;strokeColor=#2e7d32;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="680" y="750" width="140" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="decision3" value="升级成功?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#e65100;strokeWidth=2;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="350" y="860" width="140" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="77" style="edgeStyle=none;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="15" target="24">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="error2" value="检查操作日志" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffebee;strokeColor=#c62828;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="880" y="860" width="140" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="step6" value="图像机点击退出&lt;br&gt;重启图像机" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#4a148c;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="330" y="980" width="180" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="end" value="升级完成" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1f5fe;strokeColor=#01579b;strokeWidth=2;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="380" y="1080" width="80" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="c1" value="" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="start" target="step1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c2" value="" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="step1" target="step2">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="75" style="edgeStyle=none;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="21" target="14">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="-390" y="850"/>
+                            <mxPoint x="-390" y="1080"/>
+                            <mxPoint x="650" y="1080"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c3" value="" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="step2" target="step3">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c4" value="" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="step3" target="step4">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c5" value="" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="step4" target="step5">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c6" value="" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="step5" target="decision1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c7" value="否" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="decision1" target="error1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c8" value="" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="error1" target="step5">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="170" y="480"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c9" value="是" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="decision1" target="decision2">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c10" value="emmc" style="endArrow=classic;html=1;strokeWidth=2;fillColor=#e51400;strokeColor=#B20000;fontColor=#FF2424;" edge="1" parent="1" source="decision2" target="upgrade1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c11" value="sd卡" style="endArrow=classic;html=1;strokeWidth=2;fillColor=#e51400;strokeColor=#B20000;fontColor=#FF1111;" edge="1" parent="1" source="decision2" target="upgrade2">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c12" value="qt软件" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="decision2" target="upgrade3">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c13" value="ku5p" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="decision2" target="upgrade4">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c14" value="" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="upgrade1" target="decision3">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="150" y="890"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c15" value="" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="upgrade2" target="decision3">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="350" y="830"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c16" value="" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="upgrade3" target="decision3">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="550" y="830"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c17" value="" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="upgrade4" target="decision3">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="750" y="890"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c18" value="否" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="decision3" target="error2">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c19" value="" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="error2" target="step5">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="950" y="480"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c20" value="是" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="decision3" target="step6">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c21" value="" style="endArrow=classic;html=1;strokeWidth=2;" edge="1" parent="1" source="step6" target="end">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="390" y="410" as="sourcePoint"/>
+                        <mxPoint x="440" y="360" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="79" value="&lt;div style=&quot;font-family: Consolas, &amp;quot;Courier New&amp;quot;, monospace; font-weight: normal; font-size: 14px; line-height: 19px; white-space: pre;&quot;&gt;&lt;font style=&quot;color: rgb(0, 0, 0);&quot;&gt;V1.0.0.202507281100&lt;/font&gt;&lt;/div&gt;&lt;div style=&quot;font-family: Consolas, &amp;quot;Courier New&amp;quot;, monospace; font-weight: normal; font-size: 14px; line-height: 19px; white-space: pre;&quot;&gt;&lt;font style=&quot;color: rgb(0, 0, 0);&quot;&gt;以前的版本需要先升级7ev&lt;/font&gt;&lt;/div&gt;&lt;div style=&quot;font-family: Consolas, &amp;quot;Courier New&amp;quot;, monospace; font-weight: normal; font-size: 14px; line-height: 19px; white-space: pre;&quot;&gt;&lt;font style=&quot;color: rgb(0, 0, 0);&quot;&gt;升级成功后重启，再升级其它程序&lt;/font&gt;&lt;/div&gt;" style="whiteSpace=wrap;html=1;strokeWidth=2;fontStyle=1;fillColor=#f8cecc;gradientColor=#ea6b66;strokeColor=#b85450;" vertex="1" parent="1">
+                    <mxGeometry x="530" y="600" width="220" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="81" value="F1-&amp;gt;设置-&amp;gt;通用设置-&amp;gt;本地IP-&amp;gt;IP地址" style="whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#4a148c;rounded=1;strokeWidth=2;" vertex="1" parent="1">
+                    <mxGeometry x="620" y="110" width="120" height="60" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

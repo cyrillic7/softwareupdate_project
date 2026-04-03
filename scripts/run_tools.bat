@@ -1,5 +1,5 @@
 @echo off
-chcp 936 >nul 2>&1
+chcp 65001 >nul
 REM /**
 REM  * @File Name: run_tools.bat
 REM  * @brief  680图像机软件工具套件启动脚本

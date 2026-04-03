@@ -73,12 +73,15 @@ private slots:
     void onToggleLogView();
     void onToggleCommandView();
     void onToggleBuiltinCommandView();
+    void onToggleFileSelectionView();
+    void onToggleSettingsView();
     void onVerifyFileFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void onShowMachineCode();
     void onUpgradeQtSoftware();
     void onUpgrade7evEmmc();
     void onUpgrade7evSd();
     void onUpgradeKu5p();
+    void onUpgradePatch();
     void onExecuteCustomCommand();
     void onClearCommandOutput();
     void onCommandInputEnterPressed();
@@ -112,6 +115,7 @@ private:
     void connectSignals();
     void logMessage(const QString &message);
     bool validateSettings();
+    bool validateConnectionSettings();  // 只验证连接设置，不检查文件路径
     bool validateSSHSettings();  // SSH密钥功能专用验证函数
     void startUpload();
     
@@ -128,6 +132,11 @@ private:
     QString calculateFileMD5(const QString &filePath);
     void startFileVerification();
     
+    // 加密文件解密功能
+    bool decryptPackageFile(const QString &encryptedPath, const QString &outputPath);
+    QString createTempDecryptedFile(const QString &encryptedPath);
+    void cleanupTempDecryptedFile();
+    
     // SSH远程命令执行
     void executeRemoteCommand(const QString &command, const QString &workingDir = QString());
     void executeCustomRemoteCommand(const QString &command);
@@ -137,6 +146,7 @@ private:
     void executeActual7evUpgrade(const QString &devicePath, const QString &mountPath);
     void executeKu5pUpgrade();
     void executeKu5pRemoteCommand(const QString &command);
+    void executePatchRemoteCommand(const QString &command);
     
     // 机器码验证相关函数
     QString getMachineCode();
@@ -207,6 +217,7 @@ private:
     QPushButton *upgrade7evEmmcButton;
     QPushButton *upgrade7evSdButton;
     QPushButton *upgradeKu5pButton;
+    QPushButton *upgradePatchButton;
     QLabel *statusLabel;
     QProgressBar *transferProgressBar;
     
@@ -258,6 +269,8 @@ private:
     QAction *toggleLogAction;
     QAction *toggleCommandAction;
     QAction *toggleBuiltinCommandAction;
+    QAction *toggleFileSelectionAction;
+    QAction *toggleSettingsAction;
     QAction *showMachineCodeAction;
     QAction *openSettingsAction;
     QAction *enableSSHKeyAction;
@@ -272,6 +285,7 @@ private:
     QProcess *preCheck7evProcess;
     QProcess *upgrade7evProcess;
     QProcess *upgradeKu5pProcess;
+    QProcess *upgradePatchProcess;
     QProcess *sshKeyGenProcess;
     QProcess *builtinCommandProcess;
     QTimer *progressTimer;
@@ -280,6 +294,8 @@ private:
     QString localFileMD5;
     QPushButton *cancelButton;
     QTemporaryFile *keyFile;
+    QString tempDecryptedFilePath;  // 临时解密文件路径
+    QString originalEncryptedPath;  // 原始加密文件路径
     
     // 设置相关
     SettingsDialog *settingsDialog;
@@ -317,6 +333,7 @@ private:
     bool is7evUpgradeFile = false; // 标记当前是否在处理7ev EMMC升级包
     bool is7evSdUpgradeFile = false; // 标记当前是否在处理7ev SD卡升级包
     bool isKu5pUpgradeFile = false; // 标记当前是否在处理KU5P升级包
+    bool isPatchUpgradeFile = false; // 标记当前是否在处理升级补丁包
 };
 
 #endif // MAINWINDOW_H 

@@ -269,7 +269,8 @@ public:
     
     /// 获取系统环境变量
     static QString getEnvironmentVariable(const QString &name, const QString &defaultValue = QString()) {
-        return qgetenv(name.toLocal8Bit().constData());
+        QString value = qgetenv(name.toLocal8Bit().constData());
+        return value.isEmpty() ? defaultValue : value;
     }
     
     // ===================进程执行优化=================== 

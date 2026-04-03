@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 REM /**
 REM  * @File Name: build_all_tools.bat
 REM  * @brief  680图像机软件工具套件统一编译脚本，一键编译所有工具
@@ -25,6 +26,7 @@ echo [2] 机器码查看工具 - GetMachineCode.exe
 echo [3] 授权文件生成工具 - GenerateAuth.exe
 echo [4] 综合授权工具 - 680_AuthTool.exe
 echo [5] 测试工具 - test_double_compass.exe
+echo [6] 升级包加密工具 - EncryptPackage.exe
 echo.
 echo ================================================================
 
@@ -98,6 +100,12 @@ call :BuildProject "test_double_compass.pro" "test_double_compass.exe" "测试�
 
 echo.
 echo ================================================================
+echo 开始编译升级包加密工具...
+echo ================================================================
+call :BuildProject "encrypt_package.pro" "EncryptPackage.exe" "升级包加密工具"
+
+echo.
+echo ================================================================
 echo 编译完成！检查结果...
 echo ================================================================
 
@@ -108,6 +116,7 @@ call :CheckResult "GetMachineCode.exe" "机器码查看工具"
 call :CheckResult "GenerateAuth.exe" "授权文件生成工具"
 call :CheckResult "680_AuthTool.exe" "综合授权工具"
 call :CheckResult "test_double_compass.exe" "测试工具"
+call :CheckResult "EncryptPackage.exe" "升级包加密工具"
 
 echo.
 echo ================================================================
@@ -119,6 +128,7 @@ echo - 机器码查看：bin\GetMachineCode.exe
 echo - 授权生成：bin\GenerateAuth.exe
 echo - 综合授权工具：bin\680_AuthTool.exe
 echo - 测试工具：bin\test_double_compass.exe
+echo - 升级包加密：bin\EncryptPackage.exe
 echo.
 echo 使用方法：
 echo - 直接运行：.\bin\[工具名].exe
