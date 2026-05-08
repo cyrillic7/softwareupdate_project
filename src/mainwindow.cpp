@@ -22,6 +22,96 @@
 #include <QNetworkInterface>
 #include "settingsdialog.h"
 #include "platformhelper.h"
+#include <QDirIterator>
+#include <QCoreApplication>
+#include <QEventLoop>
+#include <QProgressDialog>
+
+namespace {
+
+inline void pumpUiEvents()
+{
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+}
+
+/** 分片等待子进程结束，避免解压时主界面长时间不刷新 */
+void waitProcessFinishing(QProcess &proc)
+{
+    while (!proc.waitForFinished(80)) {
+        pumpUiEvents();
+        if (proc.state() == QProcess::NotRunning)
+            break;
+    }
+}
+
+QString findEncInTree(const QString &root, const QString &baseName)
+{
+    if (root.isEmpty())
+        return QString();
+    const QString direct = QDir::cleanPath(root + QLatin1Char('/') + baseName);
+    if (QFileInfo::exists(direct) && QFileInfo(direct).isFile())
+        return direct;
+    QDirIterator it(root, QDir::Files, QDirIterator::Subdirectories);
+    int steps = 0;
+    while (it.hasNext()) {
+        it.next();
+        if (((++steps) % 256) == 0)
+            pumpUiEvents();
+        if (it.fileName().compare(baseName, Qt::CaseInsensitive) == 0)
+            return it.filePath();
+    }
+    return QString();
+}
+
+QString resolve7zExecutable()
+{
+    const QStringList paths = {
+        QApplication::applicationDirPath() + "/7z.exe",
+        QApplication::applicationDirPath() + "/7z",
+        QStringLiteral("C:/Program Files/7-Zip/7z.exe"),
+        QStringLiteral("C:/Program Files (x86)/7-Zip/7z.exe"),
+    };
+    for (const QString &p : paths) {
+        if (!p.isEmpty() && QFileInfo::exists(p))
+            return p;
+    }
+    QProcess where;
+    where.start("where", QStringList() << "7z");
+    if (where.waitForFinished(5000) && where.exitCode() == 0) {
+        const QString line = QString::fromUtf8(where.readAllStandardOutput()).trimmed()
+                                 .split('\n', QString::SkipEmptyParts).value(0)
+                                 .trimmed();
+        if (QFileInfo::exists(line))
+            return line;
+    }
+    return QString();
+}
+
+QString resolveUnrarExecutable()
+{
+    const QStringList paths = {
+        QApplication::applicationDirPath() + "/UnRAR.exe",
+        QApplication::applicationDirPath() + "/unrar.exe",
+        QStringLiteral("C:/Program Files/WinRAR/UnRAR.exe"),
+        QStringLiteral("C:/Program Files (x86)/WinRAR/UnRAR.exe"),
+    };
+    for (const QString &p : paths) {
+        if (!p.isEmpty() && QFileInfo::exists(p))
+            return p;
+    }
+    QProcess where;
+    where.start("where", QStringList() << "unrar");
+    if (where.waitForFinished(5000) && where.exitCode() == 0) {
+        const QString line = QString::fromUtf8(where.readAllStandardOutput()).trimmed()
+                                 .split('\n', QString::SkipEmptyParts).value(0)
+                                 .trimmed();
+        if (QFileInfo::exists(line))
+            return line;
+    }
+    return QString();
+}
+
+} // namespace
 
 // 静态变量记录最后一次成功的认证方式
 static QString lastSuccessfulAuthMethod = "None";
@@ -224,6 +314,10 @@ MainWindow::~MainWindow()
         upgradeKu5pProcess->kill();
         upgradeKu5pProcess->waitForFinished(1000);
         upgradeKu5pProcess->deleteLater();
+    }
+    if (!bundle690ExtractDir.isEmpty()) {
+        QDir(bundle690ExtractDir).removeRecursively();
+        bundle690ExtractDir.clear();
     }
     if (sshKeyGenProcess) {
         sshKeyGenProcess->kill();
@@ -515,7 +609,33 @@ void MainWindow::setupUI()
         "    border-color: #95a5a6;"
         "}"
     );
-    
+
+    upgrade690BundleButton = new QPushButton("690整合包升级", this);
+    upgrade690BundleButton->setObjectName("upgrade690BundleButton");
+    upgrade690BundleButton->setStyleSheet(
+        "QPushButton#upgrade690BundleButton {"
+        "    background-color: #8e44ad;"
+        "    color: white;"
+        "    border: 2px solid #71368a;"
+        "    border-radius: 6px;"
+        "    font-weight: bold;"
+        "    padding: 8px 16px;"
+        "}"
+        "QPushButton#upgrade690BundleButton:hover {"
+        "    background-color: #7d3c98;"
+        "    border-color: #633974;"
+        "}"
+        "QPushButton#upgrade690BundleButton:pressed {"
+        "    background-color: #633974;"
+        "    border-color: #512e5f;"
+        "}"
+        "QPushButton#upgrade690BundleButton:disabled {"
+        "    background-color: #bdc3c7;"
+        "    color: #7f8c8d;"
+        "    border-color: #95a5a6;"
+        "}"
+    );
+
     // 设置按钮的最小宽度，保持一致的外观
     cancelButton->setMinimumWidth(100);
     clearLogButton->setMinimumWidth(100);
@@ -524,6 +644,7 @@ void MainWindow::setupUI()
     upgrade7evSdButton->setMinimumWidth(120);
     upgradeKu5pButton->setMinimumWidth(100);
     upgradePatchButton->setMinimumWidth(100);
+    upgrade690BundleButton->setMinimumWidth(120);
     
     uploadButtonLayout->addWidget(cancelButton);
     uploadButtonLayout->addWidget(clearLogButton);
@@ -532,6 +653,7 @@ void MainWindow::setupUI()
     uploadButtonLayout->addWidget(upgrade7evSdButton);
     uploadButtonLayout->addWidget(upgradeKu5pButton);
     uploadButtonLayout->addWidget(upgradePatchButton);
+    uploadButtonLayout->addWidget(upgrade690BundleButton);
     uploadButtonLayout->addStretch(); // 添加弹性空间，使按钮左对齐
     
     uploadLayout->addWidget(statusWidget);
@@ -836,6 +958,7 @@ void MainWindow::connectSignals()
     connect(upgrade7evSdButton, &QPushButton::clicked, this, &MainWindow::onUpgrade7evSd);
     connect(upgradeKu5pButton, &QPushButton::clicked, this, &MainWindow::onUpgradeKu5p);
     connect(upgradePatchButton, &QPushButton::clicked, this, &MainWindow::onUpgradePatch);
+    connect(upgrade690BundleButton, &QPushButton::clicked, this, &MainWindow::onUpgrade690BundlePackage);
     connect(executeCommandButton, &QPushButton::clicked, this, &MainWindow::onExecuteCustomCommand);
     connect(clearOutputButton, &QPushButton::clicked, this, &MainWindow::onClearCommandOutput);
     connect(commandLineEdit, &QLineEdit::returnPressed, this, &MainWindow::onCommandInputEnterPressed);
@@ -905,8 +1028,12 @@ void MainWindow::onUploadFile()
     if (!validateSettings()) {
         return;
     }
-    
-    startUpload();
+
+    disableAllOperationButtons();
+    statusLabel->setText("正在测试SSH连接...");
+    runConnectionTest([this]() {
+        startUpload();
+    });
 }
 
 void MainWindow::onClearLog()
@@ -915,8 +1042,25 @@ void MainWindow::onClearLog()
     logMessage("日志已清空");
 }
 
+void MainWindow::abortUploadPrecheckConnectionTest(const QString &message)
+{
+    pendingAfterSuccessfulConnectionTest = {};
+    cleanupTempDecryptedFile();
+    enableAllOperationButtons();
+    statusLabel->setText("准备就绪");
+    QMessageBox::warning(this, "连接测试失败", message);
+}
+
 void MainWindow::onTestConnection()
-{    
+{
+    runConnectionTest({});
+}
+
+void MainWindow::runConnectionTest(std::function<void()> afterSuccess)
+{
+    pendingAfterSuccessfulConnectionTest = std::move(afterSuccess);
+    const bool uploadPrecheck = static_cast<bool>(pendingAfterSuccessfulConnectionTest);
+
     if (testProcess) {
         testProcess->kill();
         testProcess->waitForFinished(1000);
@@ -931,14 +1075,22 @@ void MainWindow::onTestConnection()
     
     if (ip.isEmpty() || username.isEmpty()) {
         logMessage("[错误] 请输入服务器IP地址和用户名");
+        if (uploadPrecheck) {
+            abortUploadPrecheckConnectionTest("请输入服务器IP地址和用户名。");
+        }
         return;
     }
     
     logMessage(QString("[测试] 正在测试SSH连接到 %1@%2:%3")
                .arg(username).arg(ip).arg(port));
-    
-    testConnectionButton->setText("连接中...");
-    testConnectionButton->setEnabled(false);
+    if (uploadPrecheck) {
+        logMessage("[上传前检查] 上传前先验证SSH连接...");
+    }
+
+    if (!uploadPrecheck) {
+        testConnectionButton->setText("连接中...");
+        testConnectionButton->setEnabled(false);
+    }
     
     // 创建SSH连接测试进程
     testProcess = new QProcess(this);
@@ -967,8 +1119,13 @@ void MainWindow::onTestConnection()
         // 检查Python脚本是否存在
         if (!QFile::exists(scriptPath)) {
             logMessage(QString("[错误] SSH连接测试脚本不存在: %1").arg(scriptPath));
-            testConnectionButton->setText("测试连接");
-            testConnectionButton->setEnabled(true);
+            if (uploadPrecheck) {
+                abortUploadPrecheckConnectionTest(
+                    QString("SSH连接测试脚本不存在：\n%1").arg(scriptPath));
+            } else {
+                testConnectionButton->setText("测试连接");
+                testConnectionButton->setEnabled(true);
+            }
             return;
         }
         
@@ -1014,8 +1171,13 @@ void MainWindow::onTestConnection()
         // 检查Python脚本是否存在
         if (!QFile::exists(scriptPath)) {
             logMessage(QString("[错误] SSH连接测试脚本不存在: %1").arg(scriptPath));
-            testConnectionButton->setText("测试连接");
-            testConnectionButton->setEnabled(true);
+            if (uploadPrecheck) {
+                abortUploadPrecheckConnectionTest(
+                    QString("SSH连接测试脚本不存在：\n%1").arg(scriptPath));
+            } else {
+                testConnectionButton->setText("测试连接");
+                testConnectionButton->setEnabled(true);
+            }
             return;
         }
         
@@ -1057,8 +1219,14 @@ void MainWindow::onTestConnection()
                 logMessage("[说明] 家庭版的系统SSH连接可能不稳定，建议避免使用");
                 
                 // Windows家庭版：直接提示用户配置认证方式，避免使用系统SSH
-                testConnectionButton->setText("测试连接");
-                testConnectionButton->setEnabled(true);
+                if (uploadPrecheck) {
+                    abortUploadPrecheckConnectionTest(
+                        "当前为 Windows 家庭版，请配置 SSH 密码或密钥后再上传。\n"
+                        "（家庭版不适合使用无密码的系统 SSH 连接测试）");
+                } else {
+                    testConnectionButton->setText("测试连接");
+                    testConnectionButton->setEnabled(true);
+                }
                 return;
             } else {
                 logMessage("[兼容性] 检测到Windows 专业版/企业版，启用标准兼容性模式");
@@ -1107,8 +1275,7 @@ void MainWindow::onTestConnection()
             } else {
                 logMessage("[错误] 连接测试超时，请检查网络和服务器设置");
             }
-            testConnectionButton->setText("测试连接");
-            testConnectionButton->setEnabled(true);
+            // 进程结束后由 onTestFinished 统一恢复按钮或取消上传预检查
         }
     });
 
@@ -1126,6 +1293,8 @@ void MainWindow::onUploadFinished(int exitCode, QProcess::ExitStatus exitStatus)
     upgrade7evSdButton->setEnabled(true);
     upgradeKu5pButton->setEnabled(true);
     upgradePatchButton->setEnabled(true);
+    upgrade690BundleButton->setEnabled(true);
+    applyBundle690UpgradeButtonLock();
     cancelButton->setVisible(false);
     transferProgressBar->setVisible(false);  // 隐藏传输进度条
     
@@ -1163,10 +1332,16 @@ void MainWindow::onUploadFinished(int exitCode, QProcess::ExitStatus exitStatus)
             logMessage(QString("输出信息: %1").arg(output.trimmed()));
         }
         
-        QMessageBox::warning(this, "上传失败", 
-            QString("SCP上传失败\n错误代码: %1\n%2")
-            .arg(exitCode)
-            .arg(error.isEmpty() ? "请检查网络连接和服务器设置" : error.trimmed()));
+        if (bundle690UpgradeActive) {
+            abort690BundleUpgrade(QString("690整合升级已中止：上传失败（退出码 %1）\n%2")
+                                      .arg(exitCode)
+                                      .arg(error.isEmpty() ? QString() : error.trimmed()));
+        } else {
+            QMessageBox::warning(this, "上传失败", 
+                QString("SCP上传失败\n错误代码: %1\n%2")
+                .arg(exitCode)
+                .arg(error.isEmpty() ? "请检查网络连接和服务器设置" : error.trimmed()));
+        }
     }
     
     if (uploadProcess) {
@@ -1231,6 +1406,9 @@ void MainWindow::onCancelUpload()
         upgrade7evEmmcButton->setEnabled(true);
         upgrade7evSdButton->setEnabled(true);
         upgradeKu5pButton->setEnabled(true);
+        upgradePatchButton->setEnabled(true);
+        upgrade690BundleButton->setEnabled(true);
+        applyBundle690UpgradeButtonLock();
         cancelButton->setVisible(false);
         transferProgressBar->setVisible(false);  // 隐藏传输进度条
         
@@ -1243,6 +1421,9 @@ void MainWindow::onCancelUpload()
         
         // 清理临时解密文件
         cleanupTempDecryptedFile();
+        if (bundle690UpgradeActive) {
+            abort690BundleUpgrade("用户取消了上传，690整合升级已中止。");
+        }
     }
 }
 
@@ -1260,18 +1441,25 @@ void MainWindow::onUploadTimeout()
         upgrade7evEmmcButton->setEnabled(true);
         upgrade7evSdButton->setEnabled(true);
         upgradeKu5pButton->setEnabled(true);
+        upgradePatchButton->setEnabled(true);
+        upgrade690BundleButton->setEnabled(true);
+        applyBundle690UpgradeButtonLock();
         cancelButton->setVisible(false);
         transferProgressBar->setVisible(false);  // 隐藏传输进度条
         
         logMessage("上传超时失败！请检查网络连接和服务器设置。");
         statusBar()->showMessage("上传超时", 3000);
         
-        QMessageBox::warning(this, "上传超时", 
-            "SCP上传操作超时（5分钟），请检查：\n"
-            "1. 网络连接是否正常\n"
-            "2. 服务器是否可达\n"
-            "3. SSH服务是否正常\n"
-            "4. 用户名密码是否正确");
+        if (bundle690UpgradeActive) {
+            abort690BundleUpgrade("上传超时，690整合升级已中止。");
+        } else {
+            QMessageBox::warning(this, "上传超时", 
+                "SCP上传操作超时（5分钟），请检查：\n"
+                "1. 网络连接是否正常\n"
+                "2. 服务器是否可达\n"
+                "3. SSH服务是否正常\n"
+                "4. 用户名密码是否正确");
+        }
             
         uploadProcess->waitForFinished(1000);
         uploadProcess->deleteLater();
@@ -1284,9 +1472,13 @@ void MainWindow::onUploadTimeout()
 
 void MainWindow::onTestFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
-    testConnectionButton->setText("测试连接");
-    testConnectionButton->setEnabled(true);
-    
+    std::function<void()> uploadContinuation = std::move(pendingAfterSuccessfulConnectionTest);
+
+    if (!uploadContinuation) {
+        testConnectionButton->setText("测试连接");
+        testConnectionButton->setEnabled(true);
+    }
+
     if (exitStatus == QProcess::NormalExit && exitCode == 0) {
         QString output = testProcess->readAllStandardOutput();
         logMessage("[成功] SSH连接测试成功，服务器可访问");
@@ -1343,65 +1535,83 @@ void MainWindow::onTestFinished(int exitCode, QProcess::ExitStatus exitStatus)
                 lastSuccessfulAuthMethod = "NoAuth";
             }
         }
-    } else {
-        QString error = testProcess->readAllStandardError();
-        QString output = testProcess->readAllStandardOutput();
-        
-        logMessage(QString("[错误] SSH连接测试失败 (退出码: %1)").arg(exitCode));
-        statusBar()->showMessage("连接测试失败", 3000);
-        
-        if (!error.isEmpty()) {
-            logMessage(QString("[错误信息] %1").arg(error.trimmed()));
-        }
-        if (!output.isEmpty()) {
-            logMessage(QString("[输出] %1").arg(output.trimmed()));
-        }
-        
 
-        
-        // 提供详细的解决方案
-        if (error.contains("Permission denied") || error.contains("Authentication failed")) {
-            bool hasSSHKey = checkSSHKeyExists();
-            QString password = passwordLineEdit->text();
-            
-            if (hasSSHKey) {
-                logMessage("[分析] SSH密钥认证失败，可能的原因：");
-                logMessage("1. 公钥未正确安装到服务器");
-                logMessage("2. 服务器 ~/.ssh/authorized_keys 权限不正确");
-                logMessage("3. 服务器SSH配置禁用了公钥认证");
-                logMessage("4. 公钥格式不正确或损坏");
-                logMessage("[解决方案] 请确认公钥已正确安装：");
-                logMessage("💡 点击 'SSH密钥' 按钮，查看公钥内容并重新安装到服务器");
-                logMessage("📋 确保服务器端文件权限正确：");
-                logMessage("   chmod 700 ~/.ssh");
-                logMessage("   chmod 600 ~/.ssh/authorized_keys");
-            } else if (!password.isEmpty()) {
-                logMessage("[分析] 密码认证失败，可能的原因：");
-                logMessage("1. 密码不正确");
-                logMessage("2. 服务器禁用了密码认证");
-                logMessage("3. 用户账户被锁定");
-                logMessage("[建议] 检查密码或改用SSH密钥认证：");
-                logMessage("💡 点击 'SSH密钥' 按钮，选择 '生成密钥' 和 '安装到服务器'");
-            } else {
-                logMessage("[分析] 认证失败，既没有SSH密钥也没有密码：");
-                logMessage("1. 未配置任何认证方式");
-                logMessage("2. 服务器拒绝连接");
-                logMessage("[建议] 配置SSH密钥认证：");
-                logMessage("💡 点击 'SSH密钥' 按钮，选择 '生成密钥' 和 '安装到服务器'");
-            }
-            
-            logMessage("✅ SSH密钥认证是最安全便捷的连接方式");
-            logMessage("[说明] SSH密钥认证比密码认证更安全且适合自动化操作");
-        } else if (error.contains("Connection refused") || error.contains("No route to host")) {
-            logMessage("[提示] 网络连接问题，请检查：");
-            logMessage("1. 服务器IP地址是否正确");
-            logMessage("2. 服务器SSH服务是否运行");
-            logMessage("3. 防火墙是否阻止SSH连接");
-            logMessage("4. 网络是否可达");
-        } else {
-            logMessage("[提示] 请检查：1)服务器IP和端口 2)SSH服务状态 3)防火墙设置 4)网络连接");
-            logMessage("[建议] 优先配置SSH密钥认证以避免密码认证问题");
+        if (testProcess) {
+            testProcess->deleteLater();
+            testProcess = nullptr;
         }
+
+        if (uploadContinuation) {
+            uploadContinuation();
+        }
+        return;
+    }
+
+    QString error = testProcess->readAllStandardError();
+    QString output = testProcess->readAllStandardOutput();
+    
+    logMessage(QString("[错误] SSH连接测试失败 (退出码: %1)").arg(exitCode));
+    statusBar()->showMessage("连接测试失败", 3000);
+    
+    if (!error.isEmpty()) {
+        logMessage(QString("[错误信息] %1").arg(error.trimmed()));
+    }
+    if (!output.isEmpty()) {
+        logMessage(QString("[输出] %1").arg(output.trimmed()));
+    }
+    
+
+    
+    // 提供详细的解决方案
+    if (error.contains("Permission denied") || error.contains("Authentication failed")) {
+        bool hasSSHKey = checkSSHKeyExists();
+        QString password = passwordLineEdit->text();
+        
+        if (hasSSHKey) {
+            logMessage("[分析] SSH密钥认证失败，可能的原因：");
+            logMessage("1. 公钥未正确安装到服务器");
+            logMessage("2. 服务器 ~/.ssh/authorized_keys 权限不正确");
+            logMessage("3. 服务器SSH配置禁用了公钥认证");
+            logMessage("4. 公钥格式不正确或损坏");
+            logMessage("[解决方案] 请确认公钥已正确安装：");
+            logMessage("💡 点击 'SSH密钥' 按钮，查看公钥内容并重新安装到服务器");
+            logMessage("📋 确保服务器端文件权限正确：");
+            logMessage("   chmod 700 ~/.ssh");
+            logMessage("   chmod 600 ~/.ssh/authorized_keys");
+        } else if (!password.isEmpty()) {
+            logMessage("[分析] 密码认证失败，可能的原因：");
+            logMessage("1. 密码不正确");
+            logMessage("2. 服务器禁用了密码认证");
+            logMessage("3. 用户账户被锁定");
+            logMessage("[建议] 检查密码或改用SSH密钥认证：");
+            logMessage("💡 点击 'SSH密钥' 按钮，选择 '生成密钥' 和 '安装到服务器'");
+        } else {
+            logMessage("[分析] 认证失败，既没有SSH密钥也没有密码：");
+            logMessage("1. 未配置任何认证方式");
+            logMessage("2. 服务器拒绝连接");
+            logMessage("[建议] 配置SSH密钥认证：");
+            logMessage("💡 点击 'SSH密钥' 按钮，选择 '生成密钥' 和 '安装到服务器'");
+        }
+        
+        logMessage("✅ SSH密钥认证是最安全便捷的连接方式");
+        logMessage("[说明] SSH密钥认证比密码认证更安全且适合自动化操作");
+    } else if (error.contains("Connection refused") || error.contains("No route to host")) {
+        logMessage("[提示] 网络连接问题，请检查：");
+        logMessage("1. 服务器IP地址是否正确");
+        logMessage("2. 服务器SSH服务是否运行");
+        logMessage("3. 防火墙是否阻止SSH连接");
+        logMessage("4. 网络是否可达");
+    } else {
+        logMessage("[提示] 请检查：1)服务器IP和端口 2)SSH服务状态 3)防火墙设置 4)网络连接");
+        logMessage("[建议] 优先配置SSH密钥认证以避免密码认证问题");
+    }
+
+    if (uploadContinuation) {
+        cleanupTempDecryptedFile();
+        enableAllOperationButtons();
+        statusLabel->setText("准备就绪");
+        QMessageBox::warning(this, "连接测试失败",
+            "无法连接到服务器，上传已取消。\n请检查网络、SSH服务及账号配置，详情见日志。");
     }
     
     if (testProcess) {
@@ -1612,7 +1822,11 @@ void MainWindow::startUpload()
     localFileMD5 = calculateFileMD5(selectedFilePath);
     if (localFileMD5.isEmpty()) {
         logMessage("[错误] 无法计算本地文件MD5值");
-        QMessageBox::warning(this, "错误", "无法计算本地文件MD5值，上传取消");
+        if (bundle690UpgradeActive) {
+            abort690BundleUpgrade("无法计算本地文件 MD5，690整合升级已中止。");
+        } else {
+            QMessageBox::warning(this, "错误", "无法计算本地文件MD5值，上传取消");
+        }
         return;
     }
     logMessage(QString("本地文件MD5: %1").arg(localFileMD5));
@@ -1629,6 +1843,8 @@ void MainWindow::startUpload()
     upgrade7evEmmcButton->setEnabled(false);
     upgrade7evSdButton->setEnabled(false);
     upgradeKu5pButton->setEnabled(false);
+    upgradePatchButton->setEnabled(false);
+    upgrade690BundleButton->setEnabled(false);
     cancelButton->setVisible(true);
     statusLabel->setText("正在连接服务器...");
     transferProgressBar->setVisible(true);  // 显示传输进度条
@@ -2220,6 +2436,8 @@ void MainWindow::onVerifyFileFinished(int exitCode, QProcess::ExitStatus exitSta
     upgrade7evSdButton->setEnabled(true);
     upgradeKu5pButton->setEnabled(true);
     upgradePatchButton->setEnabled(true);
+    upgrade690BundleButton->setEnabled(true);
+    applyBundle690UpgradeButtonLock();
     cancelButton->setVisible(false);
     //transferProgressBar->setVisible(false);  // 隐藏传输进度条
     
@@ -2421,6 +2639,9 @@ void MainWindow::onVerifyFileFinished(int exitCode, QProcess::ExitStatus exitSta
                             isPatchUpgradeFile = false;
                         }
                         else {
+                            if (bundle690UpgradeActive) {
+                                abort690BundleUpgrade("690整合升级：MD5校验通过但未进入预期升级流程，已中止。");
+                            } else {
                             QMessageBox::information(this, "上传成功", 
                                 QString("文件 %1 已成功上传到服务器并通过MD5校验\n"
                                        "目标路径: %2\n"
@@ -2430,12 +2651,18 @@ void MainWindow::onVerifyFileFinished(int exitCode, QProcess::ExitStatus exitSta
                                 .arg(remoteDirectory)
                                 .arg(localMD5Lower)
                                 .arg(remoteMD5));
+                            }
                         }
                     } else {
                         logMessage("[错误] MD5校验失败！文件可能损坏或不完整");
                         statusLabel->setText("MD5校验失败");
                         statusBar()->showMessage("校验失败", 3000);
                         
+                        if (bundle690UpgradeActive) {
+                            abort690BundleUpgrade(QString("690整合升级已中止：MD5校验失败\n本地: %1\n远程: %2")
+                                                      .arg(localMD5Lower)
+                                                      .arg(remoteMD5));
+                        } else {
                         QMessageBox::warning(this, "校验失败", 
                             QString("文件上传成功但MD5校验失败！\n"
                                    "本地MD5: %1\n"
@@ -2443,21 +2670,30 @@ void MainWindow::onVerifyFileFinished(int exitCode, QProcess::ExitStatus exitSta
                                    "建议重新上传文件")
                             .arg(localMD5Lower)
                             .arg(remoteMD5));
+                        }
                     }
                 } else {
                     logMessage("[错误] 无法解析远程MD5值");
                     statusLabel->setText("校验失败");
                     statusBar()->showMessage("校验失败", 3000);
                     
+                    if (bundle690UpgradeActive) {
+                        abort690BundleUpgrade("690整合升级已中止：无法解析远程 MD5。");
+                    } else {
                     QMessageBox::warning(this, "校验失败", 
                         "无法获取远程文件MD5值，但文件已上传成功");
+                    }
                 }
             } else {
                 logMessage("[错误] 远程MD5计算无输出");
                 statusBar()->showMessage("校验失败", 3000);
                 
+                if (bundle690UpgradeActive) {
+                    abort690BundleUpgrade("690整合升级已中止：远程 MD5 无输出。");
+                } else {
                 QMessageBox::warning(this, "校验失败", 
                     "无法计算远程文件MD5值，但文件已上传成功");
+                }
             }
         } else {
             QString error = verifyProcess->readAllStandardError();
@@ -2469,9 +2705,15 @@ void MainWindow::onVerifyFileFinished(int exitCode, QProcess::ExitStatus exitSta
             
             statusBar()->showMessage("校验失败", 3000);
             
+            if (bundle690UpgradeActive) {
+                abort690BundleUpgrade(QString("690整合升级已中止：远程校验命令失败（退出码 %1）\n%2")
+                                          .arg(exitCode)
+                                          .arg(error.isEmpty() ? QString() : error.trimmed()));
+            } else {
             QMessageBox::warning(this, "校验失败", 
                 QString("无法验证文件完整性，但文件已上传成功\n错误: %1")
                 .arg(error.isEmpty() ? "远程命令执行失败" : error.trimmed()));
+            }
         }
         
         verifyProcess->deleteLater();
@@ -2579,10 +2821,6 @@ void MainWindow::onShowMachineCode()
 
 void MainWindow::onUpgradeQtSoftware()
 {
-    if (!validateConnectionSettings()) {
-        return;
-    }
-    
     // 检查是否有进程正在运行
     if (uploadProcess && uploadProcess->state() != QProcess::NotRunning) {
         QMessageBox::warning(this, "操作进行中", "请等待当前操作完成后再执行升级操作！");
@@ -2594,100 +2832,99 @@ void MainWindow::onUpgradeQtSoftware()
         return;
     }
 
-    // 选择要上传的加密文件
-    QString filePath = QFileDialog::getOpenFileName(this,
-        "选择Qt升级包(加密)",
-        QDir::currentPath(),
-        "加密Qt升级包 (qt_update.tar.gz.enc);;所有文件 (*)");
-
-    if (filePath.isEmpty()) {
-        logMessage("用户取消了文件选择");
-        return;
-    }
-
-    // 检查文件名是否正确
-    QFileInfo fileInfo(filePath);
-    if (fileInfo.fileName() != "qt_update.tar.gz.enc") {
-        QMessageBox::warning(this, "文件错误", 
-            "请选择正确的加密Qt升级包文件：qt_update.tar.gz.enc");
-        logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
-        return;
-    }
-
-    // 检查文件是否存在且可读
-    QFile file(filePath);
-    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
-        QMessageBox::warning(this, "文件错误", 
-            "无法读取选择的文件，请确保文件存在且有读取权限。");
-        logMessage("无法读取文件：" + filePath);
-        return;
-    }
-    file.close();
-
-    // 解密文件到临时目录
-    logMessage("开始解密Qt升级包...");
-    QString decryptedPath = createTempDecryptedFile(filePath);
-    if (decryptedPath.isEmpty()) {
-        QMessageBox::critical(this, "解密失败", 
-            "无法解密升级包文件，请检查文件是否有效。");
-        return;
-    }
-
-    // 保存解密后的文件路径用于上传
-    selectedFilePath = decryptedPath;
-    fileInfo = QFileInfo(decryptedPath);
-    
-    // 构建源文件路径
-    QString sourceDir = remoteDirectory.trimmed();
-    if (!sourceDir.endsWith('/')) {
-        sourceDir += '/';
-    }
-    QString sourceFile = sourceDir + "qt_update.tar.gz";
-    
-    // 确认对话框
-    int ret = QMessageBox::question(this, "确认升级", 
-        QString("即将在远程服务器上执行qt软件升级操作：\n\n"
-        "1. 上传文件：%1\n"
-        "2. 工作目录：%2\n"
-        "3. 执行命令：tar -xzvf qt_update.tar.gz -C %3 && sync\n\n"
-        "说明：\n"
-        "1. 从 %4 解压qt_update.tar.gz到%3目录\n"
-        "2. 执行sync命令同步数据到磁盘\n\n"
-        "注意：此操作将解压并覆盖目标目录中的文件，请确认无误后继续。\n\n"
-        "是否继续执行升级操作？")
-        .arg(fileInfo.fileName())
-        .arg(sourceDir)
-        .arg(qtExtractPath)
-        .arg(sourceFile),
-        QMessageBox::Yes | QMessageBox::No,
-        QMessageBox::No);
-    
-    if (ret != QMessageBox::Yes) {
-        logMessage("用户取消了qt软件升级操作");
-        return;
-    }
-    
-    logMessage("开始执行qt软件升级操作...");
-    logMessage("操作步骤：1. 上传升级包  2. 解压qt软件包  3. 同步数据到磁盘");
-    statusLabel->setText("正在上传Qt升级包");
-    transferProgressBar->setVisible(true);
-    
-    // 禁用所有操作按钮
     disableAllOperationButtons();
-    
-    // 设置标志位
-    isQtUpgradeFile = true;
-    
-    // 开始上传文件
-    startUpload();
+    statusLabel->setText("正在测试SSH连接...");
+    transferProgressBar->setVisible(false);
+
+    runConnectionTest([this]() {
+        enableAllOperationButtons();
+        statusLabel->setText("准备就绪");
+
+        // 选择要上传的加密文件
+        QString filePath = QFileDialog::getOpenFileName(this,
+            "选择Qt升级包(加密)",
+            QDir::currentPath(),
+            "加密Qt升级包 (qt_update.tar.gz.enc);;所有文件 (*)");
+
+        if (filePath.isEmpty()) {
+            logMessage("用户取消了文件选择");
+            return;
+        }
+
+        // 检查文件名是否正确
+        QFileInfo fileInfo(filePath);
+        if (fileInfo.fileName() != "qt_update.tar.gz.enc") {
+            QMessageBox::warning(this, "文件错误", 
+                "请选择正确的加密Qt升级包文件：qt_update.tar.gz.enc");
+            logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
+            return;
+        }
+
+        // 检查文件是否存在且可读
+        QFile file(filePath);
+        if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
+            QMessageBox::warning(this, "文件错误", 
+                "无法读取选择的文件，请确保文件存在且有读取权限。");
+            logMessage("无法读取文件：" + filePath);
+            return;
+        }
+        file.close();
+
+        // 解密文件到临时目录
+        logMessage("开始解密Qt升级包...");
+        QString decryptedPath = createTempDecryptedFile(filePath);
+        if (decryptedPath.isEmpty()) {
+            QMessageBox::critical(this, "解密失败", 
+                "无法解密升级包文件，请检查文件是否有效。");
+            return;
+        }
+
+        // 保存解密后的文件路径用于上传
+        selectedFilePath = decryptedPath;
+        fileInfo = QFileInfo(decryptedPath);
+        
+        // 构建源文件路径
+        QString sourceDir = remoteDirectory.trimmed();
+        if (!sourceDir.endsWith('/')) {
+            sourceDir += '/';
+        }
+        QString sourceFile = sourceDir + "qt_update.tar.gz";
+        
+        // 确认对话框
+        int ret = QMessageBox::question(this, "确认升级", 
+            QString("即将在远程服务器上执行qt软件升级操作：\n\n"
+            "1. 上传文件：%1\n"
+            "2. 工作目录：%2\n"
+            "3. 执行命令：tar -xzvf qt_update.tar.gz -C %3 && sync\n\n"
+            "说明：\n"
+            "1. 从 %4 解压qt_update.tar.gz到%3目录\n"
+            "2. 执行sync命令同步数据到磁盘\n\n"
+            "注意：此操作将解压并覆盖目标目录中的文件，请确认无误后继续。\n\n"
+            "是否继续执行升级操作？")
+            .arg(fileInfo.fileName())
+            .arg(sourceDir)
+            .arg(qtExtractPath)
+            .arg(sourceFile),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        
+        if (ret != QMessageBox::Yes) {
+            logMessage("用户取消了qt软件升级操作");
+            return;
+        }
+
+        disableAllOperationButtons();
+        logMessage("开始执行qt软件升级操作...");
+        logMessage("操作步骤：1. 上传升级包  2. 解压qt软件包  3. 同步数据到磁盘");
+        statusLabel->setText("正在上传Qt升级包");
+        transferProgressBar->setVisible(true);
+        isQtUpgradeFile = true;
+        startUpload();
+    });
 }
 
 void MainWindow::onUpgrade7evEmmc()
 {
-    if (!validateConnectionSettings()) {
-        return;
-    }
-    
     // 检查是否有进程正在运行
     if (uploadProcess && uploadProcess->state() != QProcess::NotRunning) {
         QMessageBox::warning(this, "操作进行中", "请等待当前操作完成后再执行7ev EMMC升级操作！");
@@ -2709,107 +2946,106 @@ void MainWindow::onUpgrade7evEmmc()
         return;
     }
 
-    // 选择要上传的加密文件
-    QString filePath = QFileDialog::getOpenFileName(this,
-        "选择7ev固件升级包(加密)",
-        QDir::currentPath(),
-        "加密7ev固件升级包 (boots.tar.gz.enc);;所有文件 (*)");
-
-    if (filePath.isEmpty()) {
-        logMessage("用户取消了文件选择");
-        return;
-    }
-
-    // 检查文件名是否正确
-    QFileInfo fileInfo(filePath);
-    if (fileInfo.fileName() != "boots.tar.gz.enc") {
-        QMessageBox::warning(this, "文件错误", 
-            "请选择正确的加密7ev固件升级包文件：boots.tar.gz.enc");
-        logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
-        return;
-    }
-
-    // 检查文件是否存在且可读
-    QFile file(filePath);
-    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
-        QMessageBox::warning(this, "文件错误", 
-            "无法读取选择的文件，请确保文件存在且有读取权限。");
-        logMessage("无法读取文件：" + filePath);
-        return;
-    }
-    file.close();
-
-    // 解密文件到临时目录
-    logMessage("开始解密7ev EMMC升级包...");
-    QString decryptedPath = createTempDecryptedFile(filePath);
-    if (decryptedPath.isEmpty()) {
-        QMessageBox::critical(this, "解密失败", 
-            "无法解密升级包文件，请检查文件是否有效。");
-        return;
-    }
-
-    // 保存解密后的文件路径用于上传
-    selectedFilePath = decryptedPath;
-    fileInfo = QFileInfo(decryptedPath);
-    
-    // 构建源文件路径
-    QString sourceDir = remoteDirectory.trimmed();
-    if (!sourceDir.endsWith('/')) {
-        sourceDir += '/';
-    }
-    QString sourceFile = sourceDir + "boots.tar.gz";
-    QString devicePath = "/dev/mmcblk0p1";
-    QString mountPath = "/mnt/mmcblk0p1";
-    
-    // 确认对话框
-    int ret = QMessageBox::question(this, "确认7ev EMMC升级", 
-        QString("即将在远程服务器上执行7ev EMMC固件升级操作：\n\n"
-        "执行步骤：\n"
-        "1. 解密并上传固件文件：%1\n"
-        "2. 检查并处理已有挂载状态\n"
-        "3. 挂载 %2 到 %3\n"
-        "4. 检查 %4 文件是否存在\n"
-        "5. 如果存在，解压到 %3（忽略权限问题）\n"
-        "6. 验证解压结果\n"
-        "7. 执行 sync 同步数据到磁盘\n\n"
-        "注意：此操作将替换EMMC固件文件，请确认：\n"
-        "• 已备份重要数据\n"
-        "• boots.tar.gz.enc 文件完整有效\n"
-        "• 升级过程中不要断电\n\n"
-        "是否继续执行7ev EMMC升级操作？")
-        .arg(fileInfo.fileName())
-        .arg(devicePath)
-        .arg(mountPath)
-        .arg(sourceFile),
-        QMessageBox::Yes | QMessageBox::No,
-        QMessageBox::No);
-    
-    if (ret != QMessageBox::Yes) {
-        logMessage("用户取消了7ev EMMC升级操作");
-        return;
-    }
-    
-    logMessage("开始执行7ev EMMC升级操作...");
-    logMessage("操作步骤：1. 上传升级包  2. 执行升级操作");
-    statusLabel->setText("正在上传7ev固件升级包");
-    transferProgressBar->setVisible(true);
-    
-    // 禁用所有操作按钮
     disableAllOperationButtons();
+    statusLabel->setText("正在测试SSH连接...");
+    transferProgressBar->setVisible(false);
 
-    // 设置标志位
-    is7evUpgradeFile = true;
-    
-    // 开始上传文件
-    startUpload();
+    runConnectionTest([this]() {
+        enableAllOperationButtons();
+        statusLabel->setText("准备就绪");
+
+        // 选择要上传的加密文件
+        QString filePath = QFileDialog::getOpenFileName(this,
+            "选择7ev固件升级包(加密)",
+            QDir::currentPath(),
+            "加密7ev固件升级包 (boots.tar.gz.enc);;所有文件 (*)");
+
+        if (filePath.isEmpty()) {
+            logMessage("用户取消了文件选择");
+            return;
+        }
+
+        // 检查文件名是否正确
+        QFileInfo fileInfo(filePath);
+        if (fileInfo.fileName() != "boots.tar.gz.enc") {
+            QMessageBox::warning(this, "文件错误", 
+                "请选择正确的加密7ev固件升级包文件：boots.tar.gz.enc");
+            logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
+            return;
+        }
+
+        // 检查文件是否存在且可读
+        QFile file(filePath);
+        if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
+            QMessageBox::warning(this, "文件错误", 
+                "无法读取选择的文件，请确保文件存在且有读取权限。");
+            logMessage("无法读取文件：" + filePath);
+            return;
+        }
+        file.close();
+
+        // 解密文件到临时目录
+        logMessage("开始解密7ev EMMC升级包...");
+        QString decryptedPath = createTempDecryptedFile(filePath);
+        if (decryptedPath.isEmpty()) {
+            QMessageBox::critical(this, "解密失败", 
+                "无法解密升级包文件，请检查文件是否有效。");
+            return;
+        }
+
+        // 保存解密后的文件路径用于上传
+        selectedFilePath = decryptedPath;
+        fileInfo = QFileInfo(decryptedPath);
+        
+        // 构建源文件路径
+        QString sourceDir = remoteDirectory.trimmed();
+        if (!sourceDir.endsWith('/')) {
+            sourceDir += '/';
+        }
+        QString sourceFile = sourceDir + "boots.tar.gz";
+        QString devicePath = "/dev/mmcblk0p1";
+        QString mountPath = "/mnt/mmcblk0p1";
+        
+        // 确认对话框
+        int ret = QMessageBox::question(this, "确认7ev EMMC升级", 
+            QString("即将在远程服务器上执行7ev EMMC固件升级操作：\n\n"
+            "执行步骤：\n"
+            "1. 解密并上传固件文件：%1\n"
+            "2. 检查并处理已有挂载状态\n"
+            "3. 挂载 %2 到 %3\n"
+            "4. 检查 %4 文件是否存在\n"
+            "5. 如果存在，解压到 %3（忽略权限问题）\n"
+            "6. 验证解压结果\n"
+            "7. 执行 sync 同步数据到磁盘\n\n"
+            "注意：此操作将替换EMMC固件文件，请确认：\n"
+            "• 已备份重要数据\n"
+            "• boots.tar.gz.enc 文件完整有效\n"
+            "• 升级过程中不要断电\n\n"
+            "是否继续执行7ev EMMC升级操作？")
+            .arg(fileInfo.fileName())
+            .arg(devicePath)
+            .arg(mountPath)
+            .arg(sourceFile),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        
+        if (ret != QMessageBox::Yes) {
+            logMessage("用户取消了7ev EMMC升级操作");
+            return;
+        }
+
+        disableAllOperationButtons();
+        logMessage("开始执行7ev EMMC升级操作...");
+        logMessage("操作步骤：1. 上传升级包  2. 执行升级操作");
+        statusLabel->setText("正在上传7ev固件升级包");
+        transferProgressBar->setVisible(true);
+        is7evUpgradeFile = true;
+        startUpload();
+    });
 }
 
 void MainWindow::onUpgrade7evSd()
 {
-    if (!validateConnectionSettings()) {
-        return;
-    }
-    
     // 检查是否有进程正在运行
     if (uploadProcess && uploadProcess->state() != QProcess::NotRunning) {
         QMessageBox::warning(this, "操作进行中", "请等待当前操作完成后再执行7ev SD卡升级操作！");
@@ -2831,107 +3067,106 @@ void MainWindow::onUpgrade7evSd()
         return;
     }
 
-    // 选择要上传的加密文件
-    QString filePath = QFileDialog::getOpenFileName(this,
-        "选择7ev固件升级包(加密)",
-        QDir::currentPath(),
-        "加密7ev固件升级包 (boots.tar.gz.enc);;所有文件 (*)");
-
-    if (filePath.isEmpty()) {
-        logMessage("用户取消了文件选择");
-        return;
-    }
-
-    // 检查文件名是否正确
-    QFileInfo fileInfo(filePath);
-    if (fileInfo.fileName() != "boots.tar.gz.enc") {
-        QMessageBox::warning(this, "文件错误", 
-            "请选择正确的加密7ev固件升级包文件：boots.tar.gz.enc");
-        logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
-        return;
-    }
-
-    // 检查文件是否存在且可读
-    QFile file(filePath);
-    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
-        QMessageBox::warning(this, "文件错误", 
-            "无法读取选择的文件，请确保文件存在且有读取权限。");
-        logMessage("无法读取文件：" + filePath);
-        return;
-    }
-    file.close();
-
-    // 解密文件到临时目录
-    logMessage("开始解密7ev SD卡升级包...");
-    QString decryptedPath = createTempDecryptedFile(filePath);
-    if (decryptedPath.isEmpty()) {
-        QMessageBox::critical(this, "解密失败", 
-            "无法解密升级包文件，请检查文件是否有效。");
-        return;
-    }
-
-    // 保存解密后的文件路径用于上传
-    selectedFilePath = decryptedPath;
-    fileInfo = QFileInfo(decryptedPath);
-    
-    // 构建源文件路径
-    QString sourceDir = remoteDirectory.trimmed();
-    if (!sourceDir.endsWith('/')) {
-        sourceDir += '/';
-    }
-    QString sourceFile = sourceDir + "boots.tar.gz";
-    QString devicePath = "/dev/mmcblk1p1";
-    QString mountPath = "/mnt/mmcblk1p1";
-    
-    // 确认对话框
-    int ret = QMessageBox::question(this, "确认7ev SD卡升级", 
-        QString("即将在远程服务器上执行7ev SD卡固件升级操作：\n\n"
-        "执行步骤：\n"
-        "1. 解密并上传固件文件：%1\n"
-        "2. 检查并处理已有挂载状态\n"
-        "3. 挂载 %2 到 %3\n"
-        "4. 检查 %4 文件是否存在\n"
-        "5. 如果存在，解压到 %3（忽略权限问题）\n"
-        "6. 验证解压结果\n"
-        "7. 执行 sync 同步数据到磁盘\n\n"
-        "注意：此操作将替换SD卡固件文件，请确认：\n"
-        "• 已备份重要数据\n"
-        "• boots.tar.gz.enc 文件完整有效\n"
-        "• 升级过程中不要断电\n\n"
-        "是否继续执行7ev SD卡升级操作？")
-        .arg(fileInfo.fileName())
-        .arg(devicePath)
-        .arg(mountPath)
-        .arg(sourceFile),
-        QMessageBox::Yes | QMessageBox::No,
-        QMessageBox::No);
-    
-    if (ret != QMessageBox::Yes) {
-        logMessage("用户取消了7ev SD卡升级操作");
-        return;
-    }
-    
-    logMessage("开始执行7ev SD卡升级操作...");
-    logMessage("操作步骤：1. 上传升级包  2. 执行升级操作");
-    statusLabel->setText("正在上传7ev固件升级包");
-    transferProgressBar->setVisible(true);
-    
-    // 禁用所有操作按钮
     disableAllOperationButtons();
+    statusLabel->setText("正在测试SSH连接...");
+    transferProgressBar->setVisible(false);
 
-    // 设置标志位
-    is7evSdUpgradeFile = true;
-    
-    // 开始上传文件
-    startUpload();
+    runConnectionTest([this]() {
+        enableAllOperationButtons();
+        statusLabel->setText("准备就绪");
+
+        // 选择要上传的加密文件
+        QString filePath = QFileDialog::getOpenFileName(this,
+            "选择7ev固件升级包(加密)",
+            QDir::currentPath(),
+            "加密7ev固件升级包 (boots.tar.gz.enc);;所有文件 (*)");
+
+        if (filePath.isEmpty()) {
+            logMessage("用户取消了文件选择");
+            return;
+        }
+
+        // 检查文件名是否正确
+        QFileInfo fileInfo(filePath);
+        if (fileInfo.fileName() != "boots.tar.gz.enc") {
+            QMessageBox::warning(this, "文件错误", 
+                "请选择正确的加密7ev固件升级包文件：boots.tar.gz.enc");
+            logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
+            return;
+        }
+
+        // 检查文件是否存在且可读
+        QFile file(filePath);
+        if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
+            QMessageBox::warning(this, "文件错误", 
+                "无法读取选择的文件，请确保文件存在且有读取权限。");
+            logMessage("无法读取文件：" + filePath);
+            return;
+        }
+        file.close();
+
+        // 解密文件到临时目录
+        logMessage("开始解密7ev SD卡升级包...");
+        QString decryptedPath = createTempDecryptedFile(filePath);
+        if (decryptedPath.isEmpty()) {
+            QMessageBox::critical(this, "解密失败", 
+                "无法解密升级包文件，请检查文件是否有效。");
+            return;
+        }
+
+        // 保存解密后的文件路径用于上传
+        selectedFilePath = decryptedPath;
+        fileInfo = QFileInfo(decryptedPath);
+        
+        // 构建源文件路径
+        QString sourceDir = remoteDirectory.trimmed();
+        if (!sourceDir.endsWith('/')) {
+            sourceDir += '/';
+        }
+        QString sourceFile = sourceDir + "boots.tar.gz";
+        QString devicePath = "/dev/mmcblk1p1";
+        QString mountPath = "/mnt/mmcblk1p1";
+        
+        // 确认对话框
+        int ret = QMessageBox::question(this, "确认7ev SD卡升级", 
+            QString("即将在远程服务器上执行7ev SD卡固件升级操作：\n\n"
+            "执行步骤：\n"
+            "1. 解密并上传固件文件：%1\n"
+            "2. 检查并处理已有挂载状态\n"
+            "3. 挂载 %2 到 %3\n"
+            "4. 检查 %4 文件是否存在\n"
+            "5. 如果存在，解压到 %3（忽略权限问题）\n"
+            "6. 验证解压结果\n"
+            "7. 执行 sync 同步数据到磁盘\n\n"
+            "注意：此操作将替换SD卡固件文件，请确认：\n"
+            "• 已备份重要数据\n"
+            "• boots.tar.gz.enc 文件完整有效\n"
+            "• 升级过程中不要断电\n\n"
+            "是否继续执行7ev SD卡升级操作？")
+            .arg(fileInfo.fileName())
+            .arg(devicePath)
+            .arg(mountPath)
+            .arg(sourceFile),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        
+        if (ret != QMessageBox::Yes) {
+            logMessage("用户取消了7ev SD卡升级操作");
+            return;
+        }
+
+        disableAllOperationButtons();
+        logMessage("开始执行7ev SD卡升级操作...");
+        logMessage("操作步骤：1. 上传升级包  2. 执行升级操作");
+        statusLabel->setText("正在上传7ev固件升级包");
+        transferProgressBar->setVisible(true);
+        is7evSdUpgradeFile = true;
+        startUpload();
+    });
 }
 
 void MainWindow::onUpgradeKu5p()
 {
-    if (!validateConnectionSettings()) {
-        return;
-    }
-    
     // 检查是否有进程正在运行
     if (uploadProcess && uploadProcess->state() != QProcess::NotRunning) {
         QMessageBox::warning(this, "操作进行中", "请等待当前操作完成后再执行KU5P升级操作！");
@@ -2953,105 +3188,104 @@ void MainWindow::onUpgradeKu5p()
         return;
     }
 
-    // 选择要上传的加密文件
-    QString filePath = QFileDialog::getOpenFileName(this,
-        "选择KU5P固件升级包(加密)",
-        QDir::currentPath(),
-        "加密KU5P固件升级包 (ku5p_package.tar.gz.enc);;所有文件 (*)");
-
-    if (filePath.isEmpty()) {
-        logMessage("用户取消了文件选择");
-        return;
-    }
-
-    // 检查文件名是否正确
-    QFileInfo fileInfo(filePath);
-    if (fileInfo.fileName() != "ku5p_package.tar.gz.enc") {
-        QMessageBox::warning(this, "文件错误", 
-            "请选择正确的加密KU5P升级包文件：ku5p_package.tar.gz.enc");
-        logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
-        return;
-    }
-
-    // 检查文件是否存在且可读
-    QFile file(filePath);
-    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
-        QMessageBox::warning(this, "文件错误", 
-            "无法读取选择的文件，请确保文件存在且有读取权限。");
-        logMessage("无法读取文件：" + filePath);
-        return;
-    }
-    file.close();
-
-    // 解密文件到临时目录
-    logMessage("开始解密KU5P升级包...");
-    QString decryptedPath = createTempDecryptedFile(filePath);
-    if (decryptedPath.isEmpty()) {
-        QMessageBox::critical(this, "解密失败", 
-            "无法解密升级包文件，请检查文件是否有效。");
-        return;
-    }
-
-    // 保存解密后的文件路径用于上传
-    selectedFilePath = decryptedPath;
-    fileInfo = QFileInfo(decryptedPath);
-    
-    // 构建源文件路径
-    QString sourceDir = remoteDirectory.trimmed();
-    if (!sourceDir.endsWith('/')) {
-        sourceDir += '/';
-    }
-    QString sourceFile = sourceDir + "ku5p_package.tar.gz";
-    QString devicePath = "/dev/mmcblk0p1";
-    QString mountPath = "/mnt/mmcblk0p1";
-    
-    // 确认对话框
-    int ret = QMessageBox::question(this, "确认升级", 
-        QString("即将在远程服务器上执行KU5P固件升级操作：\n\n"
-        "1. 解密并上传文件：%1\n"
-        "2. 工作目录：%2\n"
-        "3. 挂载设备：%3 到 %4\n"
-        "4. 执行命令：tar -xzvf ku5p_package.tar.gz -C %4 && sync\n\n"
-        "说明：\n"
-        "1. 检查并挂载设备分区\n"
-        "2. 从 %5 解压ku5p_package.tar.gz到%4目录\n"
-        "3. 执行sync命令同步数据到磁盘\n\n"
-        "注意：此操作将解压并覆盖目标目录中的文件，请确认无误后继续。\n\n"
-        "是否继续执行升级操作？")
-        .arg(fileInfo.fileName())
-        .arg(sourceDir)
-        .arg(devicePath)
-        .arg(mountPath)
-        .arg(sourceFile),
-        QMessageBox::Yes | QMessageBox::No,
-        QMessageBox::No);
-    
-    if (ret != QMessageBox::Yes) {
-        logMessage("用户取消了KU5P固件升级操作");
-        return;
-    }
-    
-    logMessage("开始执行KU5P固件升级操作...");
-    logMessage("操作步骤：1. 上传升级包  2. 检查并挂载设备  3. 解压KU5P固件包  4. 同步数据到磁盘");
-    statusLabel->setText("正在上传KU5P升级包");
-    transferProgressBar->setVisible(true);
-    
-    // 禁用所有操作按钮
     disableAllOperationButtons();
-    
-    // 设置标志位
-    isKu5pUpgradeFile = true;
-    
-    // 开始上传文件
-    startUpload();
+    statusLabel->setText("正在测试SSH连接...");
+    transferProgressBar->setVisible(false);
+
+    runConnectionTest([this]() {
+        enableAllOperationButtons();
+        statusLabel->setText("准备就绪");
+
+        // 选择要上传的加密文件
+        QString filePath = QFileDialog::getOpenFileName(this,
+            "选择KU5P固件升级包(加密)",
+            QDir::currentPath(),
+            "加密KU5P固件升级包 (ku5p_package.tar.gz.enc);;所有文件 (*)");
+
+        if (filePath.isEmpty()) {
+            logMessage("用户取消了文件选择");
+            return;
+        }
+
+        // 检查文件名是否正确
+        QFileInfo fileInfo(filePath);
+        if (fileInfo.fileName() != "ku5p_package.tar.gz.enc") {
+            QMessageBox::warning(this, "文件错误", 
+                "请选择正确的加密KU5P升级包文件：ku5p_package.tar.gz.enc");
+            logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
+            return;
+        }
+
+        // 检查文件是否存在且可读
+        QFile file(filePath);
+        if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
+            QMessageBox::warning(this, "文件错误", 
+                "无法读取选择的文件，请确保文件存在且有读取权限。");
+            logMessage("无法读取文件：" + filePath);
+            return;
+        }
+        file.close();
+
+        // 解密文件到临时目录
+        logMessage("开始解密KU5P升级包...");
+        QString decryptedPath = createTempDecryptedFile(filePath);
+        if (decryptedPath.isEmpty()) {
+            QMessageBox::critical(this, "解密失败", 
+                "无法解密升级包文件，请检查文件是否有效。");
+            return;
+        }
+
+        // 保存解密后的文件路径用于上传
+        selectedFilePath = decryptedPath;
+        fileInfo = QFileInfo(decryptedPath);
+        
+        // 构建源文件路径
+        QString sourceDir = remoteDirectory.trimmed();
+        if (!sourceDir.endsWith('/')) {
+            sourceDir += '/';
+        }
+        QString sourceFile = sourceDir + "ku5p_package.tar.gz";
+        QString devicePath = "/dev/mmcblk0p1";
+        QString mountPath = "/mnt/mmcblk0p1";
+        
+        // 确认对话框
+        int ret = QMessageBox::question(this, "确认升级", 
+            QString("即将在远程服务器上执行KU5P固件升级操作：\n\n"
+            "1. 解密并上传文件：%1\n"
+            "2. 工作目录：%2\n"
+            "3. 挂载设备：%3 到 %4\n"
+            "4. 执行命令：tar -xzvf ku5p_package.tar.gz -C %4 && sync\n\n"
+            "说明：\n"
+            "1. 检查并挂载设备分区\n"
+            "2. 从 %5 解压ku5p_package.tar.gz到%4目录\n"
+            "3. 执行sync命令同步数据到磁盘\n\n"
+            "注意：此操作将解压并覆盖目标目录中的文件，请确认无误后继续。\n\n"
+            "是否继续执行升级操作？")
+            .arg(fileInfo.fileName())
+            .arg(sourceDir)
+            .arg(devicePath)
+            .arg(mountPath)
+            .arg(sourceFile),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        
+        if (ret != QMessageBox::Yes) {
+            logMessage("用户取消了KU5P固件升级操作");
+            return;
+        }
+
+        disableAllOperationButtons();
+        logMessage("开始执行KU5P固件升级操作...");
+        logMessage("操作步骤：1. 上传升级包  2. 检查并挂载设备  3. 解压KU5P固件包  4. 同步数据到磁盘");
+        statusLabel->setText("正在上传KU5P升级包");
+        transferProgressBar->setVisible(true);
+        isKu5pUpgradeFile = true;
+        startUpload();
+    });
 }
 
 void MainWindow::onUpgradePatch()
 {
-    if (!validateConnectionSettings()) {
-        return;
-    }
-    
     // 检查是否有进程正在运行
     if (uploadProcess && uploadProcess->state() != QProcess::NotRunning) {
         QMessageBox::warning(this, "操作进行中", "请等待当前操作完成后再执行升级补丁操作！");
@@ -3068,93 +3302,497 @@ void MainWindow::onUpgradePatch()
         return;
     }
 
-    // 选择要上传的加密文件
-    QString filePath = QFileDialog::getOpenFileName(this,
-        "选择升级补丁包(加密)",
-        QDir::currentPath(),
-        "加密升级补丁包 (updatepackage.tar.gz.enc);;所有文件 (*)");
-
-    if (filePath.isEmpty()) {
-        logMessage("用户取消了文件选择");
-        return;
-    }
-
-    // 检查文件名是否正确
-    QFileInfo fileInfo(filePath);
-    if (fileInfo.fileName() != "updatepackage.tar.gz.enc") {
-        QMessageBox::warning(this, "文件错误", 
-            "请选择正确的加密升级补丁包文件：updatepackage.tar.gz.enc");
-        logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
-        return;
-    }
-
-    // 检查文件是否存在且可读
-    QFile file(filePath);
-    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
-        QMessageBox::warning(this, "文件错误", 
-            "无法读取选择的文件，请确保文件存在且有读取权限。");
-        logMessage("无法读取文件：" + filePath);
-        return;
-    }
-    file.close();
-
-    // 解密文件到临时目录
-    logMessage("开始解密升级补丁包...");
-    QString decryptedPath = createTempDecryptedFile(filePath);
-    if (decryptedPath.isEmpty()) {
-        QMessageBox::critical(this, "解密失败", 
-            "无法解密升级包文件，请检查文件是否有效。");
-        return;
-    }
-
-    // 保存解密后的文件路径用于上传
-    selectedFilePath = decryptedPath;
-    fileInfo = QFileInfo(decryptedPath);
-    
-    // 构建源文件路径
-    QString sourceDir = remoteDirectory.trimmed();
-    if (!sourceDir.endsWith('/')) {
-        sourceDir += '/';
-    }
-    QString sourceFile = sourceDir + "updatepackage.tar.gz";
-    
-    // 确认对话框
-    int ret = QMessageBox::question(this, "确认升级补丁", 
-        QString("即将在远程服务器上执行升级补丁操作：\n\n"
-        "1. 解密并上传文件：%1\n"
-        "2. 工作目录：%2\n"
-        "3. 目标目录：/root\n"
-        "4. 执行命令：tar -xzf updatepackage.tar.gz -C /root && sync\n\n"
-        "说明：\n"
-        "1. 从 %3 传输升级补丁包到远程服务器\n"
-        "2. 解压updatepackage.tar.gz到/root目录\n"
-        "3. 执行sync命令同步数据到磁盘\n\n"
-        "注意：此操作将解压并覆盖/root目录中的文件，请确认无误后继续。\n\n"
-        "是否继续执行升级补丁操作？")
-        .arg(fileInfo.fileName())
-        .arg(sourceDir)
-        .arg(sourceFile),
-        QMessageBox::Yes | QMessageBox::No,
-        QMessageBox::No);
-    
-    if (ret != QMessageBox::Yes) {
-        logMessage("用户取消了升级补丁操作");
-        return;
-    }
-    
-    logMessage("开始执行升级补丁操作...");
-    logMessage("操作步骤：1. 上传补丁包  2. 解压到/root目录  3. 同步数据到磁盘");
-    statusLabel->setText("正在上传升级补丁包");
-    transferProgressBar->setVisible(true);
-    
-    // 禁用所有操作按钮
     disableAllOperationButtons();
-    
-    // 设置标志位
-    isPatchUpgradeFile = true;
-    
-    // 开始上传文件
+    statusLabel->setText("正在测试SSH连接...");
+    transferProgressBar->setVisible(false);
+
+    runConnectionTest([this]() {
+        enableAllOperationButtons();
+        statusLabel->setText("准备就绪");
+
+        // 选择要上传的加密文件
+        QString filePath = QFileDialog::getOpenFileName(this,
+            "选择升级补丁包(加密)",
+            QDir::currentPath(),
+            "加密升级补丁包 (updatepackage.tar.gz.enc);;所有文件 (*)");
+
+        if (filePath.isEmpty()) {
+            logMessage("用户取消了文件选择");
+            return;
+        }
+
+        // 检查文件名是否正确
+        QFileInfo fileInfo(filePath);
+        if (fileInfo.fileName() != "updatepackage.tar.gz.enc") {
+            QMessageBox::warning(this, "文件错误", 
+                "请选择正确的加密升级补丁包文件：updatepackage.tar.gz.enc");
+            logMessage("用户选择了错误的文件名：" + fileInfo.fileName());
+            return;
+        }
+
+        // 检查文件是否存在且可读
+        QFile file(filePath);
+        if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
+            QMessageBox::warning(this, "文件错误", 
+                "无法读取选择的文件，请确保文件存在且有读取权限。");
+            logMessage("无法读取文件：" + filePath);
+            return;
+        }
+        file.close();
+
+        // 解密文件到临时目录
+        logMessage("开始解密升级补丁包...");
+        QString decryptedPath = createTempDecryptedFile(filePath);
+        if (decryptedPath.isEmpty()) {
+            QMessageBox::critical(this, "解密失败", 
+                "无法解密升级包文件，请检查文件是否有效。");
+            return;
+        }
+
+        // 保存解密后的文件路径用于上传
+        selectedFilePath = decryptedPath;
+        fileInfo = QFileInfo(decryptedPath);
+        
+        // 构建源文件路径
+        QString sourceDir = remoteDirectory.trimmed();
+        if (!sourceDir.endsWith('/')) {
+            sourceDir += '/';
+        }
+        QString sourceFile = sourceDir + "updatepackage.tar.gz";
+        
+        // 确认对话框
+        int ret = QMessageBox::question(this, "确认升级补丁", 
+            QString("即将在远程服务器上执行升级补丁操作：\n\n"
+            "1. 解密并上传文件：%1\n"
+            "2. 工作目录：%2\n"
+            "3. 目标目录：/root\n"
+            "4. 执行命令：tar -xzf updatepackage.tar.gz -C /root && sync\n\n"
+            "说明：\n"
+            "1. 从 %3 传输升级补丁包到远程服务器\n"
+            "2. 解压updatepackage.tar.gz到/root目录\n"
+            "3. 执行sync命令同步数据到磁盘\n\n"
+            "注意：此操作将解压并覆盖/root目录中的文件，请确认无误后继续。\n\n"
+            "是否继续执行升级补丁操作？")
+            .arg(fileInfo.fileName())
+            .arg(sourceDir)
+            .arg(sourceFile),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        
+        if (ret != QMessageBox::Yes) {
+            logMessage("用户取消了升级补丁操作");
+            return;
+        }
+
+        disableAllOperationButtons();
+        logMessage("开始执行升级补丁操作...");
+        logMessage("操作步骤：1. 上传补丁包  2. 解压到/root目录  3. 同步数据到磁盘");
+        statusLabel->setText("正在上传升级补丁包");
+        transferProgressBar->setVisible(true);
+        isPatchUpgradeFile = true;
+        startUpload();
+    });
+}
+
+void MainWindow::cleanup690BundleExtractDir()
+{
+    const QString dir = bundle690ExtractDir;
+    bundle690ExtractDir.clear();
+    bundle690EncPatch.clear();
+    bundle690EncBoots.clear();
+    bundle690EncQt.clear();
+    bundle690EncKu5p.clear();
+    if (!dir.isEmpty()) {
+        QDir d(dir);
+        if (d.exists()) {
+            d.removeRecursively();
+            logMessage(QString("[690整合升级] 已清理临时目录: %1").arg(dir));
+        }
+    }
+}
+
+void MainWindow::abort690BundleUpgrade(const QString &reason)
+{
+    if (!bundle690UpgradeActive)
+        return;
+    bundle690UpgradeActive = false;
+    bundle690StepIndex = 0;
+    bundle690SevenEvUseSd = false;
+    cleanup690BundleExtractDir();
+    cleanupTempDecryptedFile();
+    enableAllOperationButtons();
+    statusLabel->setText("准备就绪");
+    logMessage(QString("[690整合升级] %1").arg(reason));
+    QMessageBox::warning(this, "690整合升级", reason);
+}
+
+void MainWindow::advance690BundleAfterStepSuccess()
+{
+    if (!bundle690UpgradeActive)
+        return;
+    bundle690StepIndex++;
+    if (bundle690StepIndex >= 4) {
+        bundle690UpgradeActive = false;
+        bundle690StepIndex = 0;
+        cleanup690BundleExtractDir();
+        cleanupTempDecryptedFile();
+        enableAllOperationButtons();
+        statusLabel->setText("准备就绪");
+        bundle690SevenEvUseSd = false;
+        logMessage("[690整合升级] 全部步骤已成功完成。");
+        QMessageBox::information(this, "690整合升级完成",
+            "已按顺序完成：升级补丁 → 7ev → Qt → KU5P。\n详情请查看操作日志。");
+        return;
+    }
+    start690BundleCurrentStep();
+}
+
+bool MainWindow::prompt690BundleSevenEvTarget()
+{
+    QMessageBox msg(this);
+    msg.setIcon(QMessageBox::Question);
+    msg.setWindowTitle("选择 7ev 升级目标");
+    msg.setText("在开始第 1 步（升级补丁）之前，请先选定第 2 步 7ev（boots）的写入目标，与主界面「7ev-EMMC升级 / 7ev-SD卡升级」一致：");
+    msg.setInformativeText(
+        "EMMC：（机内存储）\n"
+        "SD卡：（外置 SD ）\n\n"
+        "选错可能导致写入错误介质，请确认后选择。\n"
+        "选择「取消升级」将中止本次整合升级，不会执行补丁及后续步骤。");
+    QPushButton *emmcBtn = msg.addButton(QStringLiteral("EMMC"), QMessageBox::AcceptRole);
+    QPushButton *sdBtn = msg.addButton(QStringLiteral("SD卡"), QMessageBox::AcceptRole);
+    QPushButton *cancelBtn = msg.addButton(QStringLiteral("取消升级"), QMessageBox::RejectRole);
+    msg.setDefaultButton(emmcBtn);
+    msg.exec();
+
+    QAbstractButton *clicked = msg.clickedButton();
+    if (clicked == cancelBtn || !clicked) {
+        logMessage("[690整合升级] 用户取消了 7ev 目标选择，未开始升级补丁");
+        return false;
+    }
+    bundle690SevenEvUseSd = (clicked == sdBtn);
+    logMessage(bundle690SevenEvUseSd
+                    ? "[690整合升级] 已选择：7ev-SD卡（将在第 2 步使用）"
+                    : "[690整合升级] 已选择：7ev-EMMC（将在第 2 步使用）");
+    return true;
+}
+
+void MainWindow::start690BundleCurrentStep()
+{
+    if (!bundle690UpgradeActive)
+        return;
+
+    isQtUpgradeFile = false;
+    is7evUpgradeFile = false;
+    is7evSdUpgradeFile = false;
+    isKu5pUpgradeFile = false;
+    isPatchUpgradeFile = false;
+
+    cleanupTempDecryptedFile();
+
+    QString encPath;
+    switch (bundle690StepIndex) {
+    case 0:
+        encPath = bundle690EncPatch;
+        break;
+    case 1:
+        encPath = bundle690EncBoots;
+        break;
+    case 2:
+        encPath = bundle690EncQt;
+        break;
+    case 3:
+        encPath = bundle690EncKu5p;
+        break;
+    default:
+        abort690BundleUpgrade("690整合升级内部错误：步骤序号无效。");
+        return;
+    }
+
+    logMessage(QString("[690整合升级] 开始步骤 %1/4：%2%3")
+                   .arg(bundle690StepIndex + 1)
+                   .arg(QFileInfo(encPath).fileName())
+                   .arg(bundle690StepIndex == 1
+                            ? (bundle690SevenEvUseSd ? QStringLiteral("（7ev-SD卡）") : QStringLiteral("（7ev-EMMC）"))
+                            : QString()));
+
+    QString decryptedPath = createTempDecryptedFile(encPath);
+    if (decryptedPath.isEmpty()) {
+        abort690BundleUpgrade(QString("无法解密：%1").arg(QFileInfo(encPath).fileName()));
+        return;
+    }
+    selectedFilePath = decryptedPath;
+
+    if (bundle690StepIndex == 0)
+        isPatchUpgradeFile = true;
+    else if (bundle690StepIndex == 1) {
+        if (bundle690SevenEvUseSd)
+            is7evSdUpgradeFile = true;
+        else
+            is7evUpgradeFile = true;
+    }
+    else if (bundle690StepIndex == 2)
+        isQtUpgradeFile = true;
+    else if (bundle690StepIndex == 3)
+        isKu5pUpgradeFile = true;
+
+    disableAllOperationButtons();
+    statusLabel->setText(QString("690整合升级 %1/4 - 正在上传").arg(bundle690StepIndex + 1));
+    transferProgressBar->setVisible(true);
     startUpload();
+}
+
+bool MainWindow::extract690RarToDirectory(const QString &rarPath, const QString &destDir, QString *errorMessage)
+{
+    if (!QDir().mkpath(destDir)) {
+        *errorMessage = QString("无法创建临时目录：%1").arg(destDir);
+        return false;
+    }
+
+    const QString sevenZ = resolve7zExecutable();
+    if (!sevenZ.isEmpty()) {
+        QString outArg = QStringLiteral("-o") + QDir::toNativeSeparators(destDir);
+        const QChar sep = QDir::separator();
+        if (!outArg.endsWith(sep))
+            outArg.append(sep);
+        QProcess proc;
+        proc.setProcessChannelMode(QProcess::MergedChannels);
+        proc.start(sevenZ, QStringList()
+            << QStringLiteral("x")
+            << QDir::toNativeSeparators(rarPath)
+            << outArg
+            << QStringLiteral("-y"));
+        if (!proc.waitForStarted(15000)) {
+            *errorMessage = QStringLiteral("7-Zip 无法启动。");
+            return false;
+        }
+        waitProcessFinishing(proc);
+        if (proc.exitStatus() == QProcess::CrashExit) {
+            *errorMessage = QStringLiteral("7-Zip 进程异常退出。");
+            return false;
+        }
+        if (proc.exitCode() != 0) {
+            const QString out = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
+            *errorMessage = out.isEmpty() ? QStringLiteral("7-Zip 解压失败。") : out;
+            return false;
+        }
+        return true;
+    }
+
+    const QString unrar = resolveUnrarExecutable();
+    if (!unrar.isEmpty()) {
+        QProcess proc;
+        proc.setProcessChannelMode(QProcess::MergedChannels);
+        const QString dest = QDir::toNativeSeparators(destDir) + QDir::separator();
+        proc.start(unrar, QStringList()
+            << QStringLiteral("x")
+            << QStringLiteral("-o+")
+            << QDir::toNativeSeparators(rarPath)
+            << dest);
+        if (!proc.waitForStarted(15000)) {
+            *errorMessage = QStringLiteral("UnRAR 无法启动。");
+            return false;
+        }
+        waitProcessFinishing(proc);
+        if (proc.exitStatus() == QProcess::CrashExit) {
+            *errorMessage = QStringLiteral("UnRAR 进程异常退出。");
+            return false;
+        }
+        if (proc.exitCode() != 0) {
+            const QString out = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
+            *errorMessage = out.isEmpty() ? QStringLiteral("UnRAR 解压失败。") : out;
+            return false;
+        }
+        return true;
+    }
+
+    *errorMessage = QStringLiteral(
+        "未找到 7-Zip (7z) 或 UnRAR。\n"
+        "请安装 7-Zip，或将 7z.exe 放在程序目录下；也可安装 WinRAR 并将 UnRAR 加入系统 PATH。");
+    return false;
+}
+
+void MainWindow::onUpgrade690BundlePackage()
+{
+    if (uploadProcess && uploadProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "请等待当前操作完成后再执行690整合升级！");
+        return;
+    }
+    if (verifyProcess && verifyProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "文件校验进行中，请稍等...");
+        return;
+    }
+    if (remoteCommandProcess && remoteCommandProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "远程命令正在执行中，请稍等...");
+        return;
+    }
+    if (preCheck7evProcess && preCheck7evProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "7ev固件升级预检查正在执行中，请稍等...");
+        return;
+    }
+    if (upgrade7evProcess && upgrade7evProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "7ev固件升级正在执行中，请稍等...");
+        return;
+    }
+    if (upgradeKu5pProcess && upgradeKu5pProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "KU5P固件升级正在执行中，请稍等...");
+        return;
+    }
+    if (upgradePatchProcess && upgradePatchProcess->state() != QProcess::NotRunning) {
+        QMessageBox::warning(this, "操作进行中", "升级补丁正在执行中，请稍等...");
+        return;
+    }
+    if (bundle690UpgradeActive) {
+        QMessageBox::warning(this, "操作进行中", "690整合升级正在进行中。");
+        return;
+    }
+
+    {
+        QMessageBox pre690(this);
+        pre690.setIcon(QMessageBox::Warning);
+        pre690.setWindowTitle(QStringLiteral("690整合升级"));
+        pre690.setTextFormat(Qt::RichText);
+        pre690.setText(
+            QStringLiteral(
+                "<p style='color:#333;'>使用前请确认：</p>"
+                "<p style='color:#c0392b; font-size:13pt; font-weight:600;'>"
+                "确认当前7ev版本V1.0.0.25062401或更高版本，才可以使用整合升级，否则ku5p无法升级成功"
+                "</p>"
+                "<p style='color:#555; margin-top:14px;'>点击 <b>确认</b> 继续；点击 <b>取消</b> 退出。</p>"));
+        QPushButton *okBtn = pre690.addButton(QStringLiteral("确认"), QMessageBox::AcceptRole);
+        pre690.addButton(QStringLiteral("取消"), QMessageBox::RejectRole);
+        pre690.setDefaultButton(okBtn);
+        pre690.exec();
+        if (pre690.clickedButton() != okBtn) {
+            logMessage("用户取消了690整合升级前置确认");
+            return;
+        }
+    }
+
+    disableAllOperationButtons();
+    statusLabel->setText("正在测试SSH连接...");
+    transferProgressBar->setVisible(false);
+
+    runConnectionTest([this]() {
+        enableAllOperationButtons();
+        statusLabel->setText("准备就绪");
+
+        const QString startDir = defaultLocalPath.isEmpty() ? QDir::currentPath() : defaultLocalPath;
+        QString rarPath = QFileDialog::getOpenFileName(this,
+            "选择690整合升级包(RAR)",
+            startDir,
+            "690整合包 (690UpgradePackage.rar);;RAR 压缩包 (*.rar);;所有文件 (*)");
+        if (rarPath.isEmpty()) {
+            logMessage("用户取消了690整合包选择");
+            return;
+        }
+
+        QFileInfo rarFi(rarPath);
+        if (!rarFi.isFile()) {
+            QMessageBox::warning(this, "文件错误", "无法读取所选文件。");
+            return;
+        }
+
+        QString extractRoot = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
+            + "/680update_690bundle_" + QString::number(QDateTime::currentMSecsSinceEpoch());
+        QString extractErr;
+
+        QProgressDialog readProgress(
+            QStringLiteral("正在解压 RAR 整合包，请稍候…"),
+            QString(), 0, 0, this);
+        readProgress.setWindowTitle(QStringLiteral("读取690整合包"));
+        readProgress.setWindowModality(Qt::ApplicationModal);
+        readProgress.setMinimumDuration(0);
+        readProgress.setCancelButton(nullptr);
+        readProgress.setRange(0, 0);
+        readProgress.setMinimumWidth(380);
+        readProgress.show();
+        statusLabel->setText(QStringLiteral("正在解压整合包…"));
+        statusBar()->showMessage(QStringLiteral("正在解压 RAR…"), 0);
+        QCoreApplication::processEvents();
+
+        logMessage(QString("[690整合升级] 正在解压: %1").arg(rarFi.fileName()));
+        if (!extract690RarToDirectory(rarPath, extractRoot, &extractErr)) {
+            readProgress.close();
+            statusLabel->setText(QStringLiteral("准备就绪"));
+            statusBar()->clearMessage();
+            QMessageBox::warning(this, "解压失败", extractErr);
+            logMessage(QString("[690整合升级] 解压失败: %1").arg(extractErr));
+            QDir(extractRoot).removeRecursively();
+            return;
+        }
+
+        readProgress.setLabelText(QStringLiteral("正在搜索包内四个加密文件（.enc）…"));
+        readProgress.setRange(0, 4);
+        readProgress.setValue(0);
+        QCoreApplication::processEvents();
+
+        const QString encPatch = findEncInTree(extractRoot, QStringLiteral("updatepackage.tar.gz.enc"));
+        readProgress.setValue(1);
+        QCoreApplication::processEvents();
+        const QString encBoots = findEncInTree(extractRoot, QStringLiteral("boots.tar.gz.enc"));
+        readProgress.setValue(2);
+        QCoreApplication::processEvents();
+        const QString encQt = findEncInTree(extractRoot, QStringLiteral("qt_update.tar.gz.enc"));
+        readProgress.setValue(3);
+        QCoreApplication::processEvents();
+        const QString encKu5p = findEncInTree(extractRoot, QStringLiteral("ku5p_package.tar.gz.enc"));
+        readProgress.setValue(4);
+
+        readProgress.close();
+        statusLabel->setText(QStringLiteral("准备就绪"));
+        statusBar()->clearMessage();
+
+        QStringList missing;
+        if (encPatch.isEmpty())
+            missing << "updatepackage.tar.gz.enc";
+        if (encBoots.isEmpty())
+            missing << "boots.tar.gz.enc";
+        if (encQt.isEmpty())
+            missing << "qt_update.tar.gz.enc";
+        if (encKu5p.isEmpty())
+            missing << "ku5p_package.tar.gz.enc";
+        if (!missing.isEmpty()) {
+            QDir(extractRoot).removeRecursively();
+            QMessageBox::warning(this, "内容不完整",
+                                 "压缩包中未找到以下文件（已递归搜索）：\n" + missing.join(QLatin1Char('\n')));
+            return;
+        }
+
+        const int ret = QMessageBox::question(this, "确认690整合升级",
+            "解压后将自动按顺序执行（与单项升级逻辑相同）：\n\n"
+            "1. 升级补丁 (updatepackage.tar.gz.enc)\n"
+            "2. 7ev 升级 (boots.tar.gz.enc)\n"
+            "3. Qt 升级 (qt_update.tar.gz.enc)\n"
+            "4. KU5P 升级 (ku5p_package.tar.gz.enc)\n\n"
+            "说明：点击「是」后，将先弹出对话框选择 7ev 写入 EMMC 还是 SD 卡，再开始第 1 步升级补丁。\n\n"
+            "是否继续？",
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+        if (ret != QMessageBox::Yes) {
+            QDir(extractRoot).removeRecursively();
+            logMessage("用户取消了690整合升级");
+            return;
+        }
+
+        bundle690SevenEvUseSd = false;
+        if (!prompt690BundleSevenEvTarget()) {
+            QDir(extractRoot).removeRecursively();
+            bundle690SevenEvUseSd = false;
+            return;
+        }
+
+        cleanup690BundleExtractDir();
+        bundle690ExtractDir = extractRoot;
+        bundle690EncPatch = encPatch;
+        bundle690EncBoots = encBoots;
+        bundle690EncQt = encQt;
+        bundle690EncKu5p = encKu5p;
+        bundle690UpgradeActive = true;
+        bundle690StepIndex = 0;
+
+        logMessage("[690整合升级] 已确认，开始自动执行（步骤 1/4：升级补丁）");
+        disableAllOperationButtons();
+        start690BundleCurrentStep();
+    });
 }
 
 void MainWindow::executePreCheck7ev(const QString &devicePath, const QString &mountPath)
@@ -3249,11 +3887,15 @@ void MainWindow::executePreCheck7evCommand(const QString &command)
             enableAllOperationButtons();
             statusBar()->showMessage("升级预检查失败", 3000);
             
+            if (bundle690UpgradeActive) {
+                abort690BundleUpgrade("7ev 预检查失败，690整合升级已中止。详情请查看日志。");
+            } else {
             QMessageBox::warning(this, "预检查失败", 
                 "7ev固件升级预检查失败！\n\n"
                 "在执行实际升级前发现以下问题，升级已中止：\n\n" + 
                 (output.isEmpty() ? "无法获取详细信息" : output.trimmed()) + "\n\n"
                 "请解决以上问题后重新尝试升级。");
+            }
         }
         
         if (preCheck7evProcess) {
@@ -3311,8 +3953,12 @@ void MainWindow::executePreCheck7evCommand(const QString &command)
         // 恢复所有操作按钮
         enableAllOperationButtons();
         
+        if (bundle690UpgradeActive) {
+            abort690BundleUpgrade("无法启动 SSH 进行 7ev 预检查，690整合升级已中止。");
+        } else {
         QMessageBox::critical(this, "预检查失败", 
             "无法启动SSH进程进行预检查。\n建议配置SSH密钥认证后重试。");
+        }
         
         if (preCheck7evProcess) {
             preCheck7evProcess->deleteLater();
@@ -3399,6 +4045,40 @@ void MainWindow::execute7evRemoteCommand(const QString &command)
         
         // 恢复所有操作按钮
         enableAllOperationButtons();
+        
+        const bool ok7evStep = (exitStatus == QProcess::NormalExit && exitCode == 0);
+        if (bundle690UpgradeActive) {
+            if (ok7evStep) {
+                QString output = upgrade7evProcess->readAllStandardOutput();
+                QString error = upgrade7evProcess->readAllStandardError();
+                logMessage("[成功] 7ev固件升级操作执行完成！");
+                if (!output.isEmpty()) {
+                    logMessage(QString("[输出] %1").arg(output.trimmed()));
+                }
+                if (!error.isEmpty()) {
+                    logMessage(QString("[信息] %1").arg(error.trimmed()));
+                }
+                statusLabel->setText("7ev固件升级完成");
+                statusBar()->showMessage("7ev固件升级操作成功完成", 3000);
+                advance690BundleAfterStepSuccess();
+            } else {
+                QString errOut = upgrade7evProcess->readAllStandardError();
+                QString stdOut = upgrade7evProcess->readAllStandardOutput();
+                logMessage(QString("[错误] 7ev固件升级失败（690整合升级，退出码: %1）").arg(exitCode));
+                if (!errOut.isEmpty()) {
+                    logMessage(QString("[错误信息] %1").arg(errOut.trimmed()));
+                }
+                if (!stdOut.isEmpty()) {
+                    logMessage(QString("[输出信息] %1").arg(stdOut.trimmed()));
+                }
+                abort690BundleUpgrade("7ev 固件升级失败，690整合升级已中止。请查看日志。");
+            }
+            if (upgrade7evProcess) {
+                upgrade7evProcess->deleteLater();
+                upgrade7evProcess = nullptr;
+            }
+            return;
+        }
         
         if (exitStatus == QProcess::NormalExit && exitCode == 0) {
             QString output = upgrade7evProcess->readAllStandardOutput();
@@ -3666,6 +4346,9 @@ void MainWindow::execute7evRemoteCommand(const QString &command)
             // 恢复所有操作按钮
             enableAllOperationButtons();
             
+            if (bundle690UpgradeActive) {
+                abort690BundleUpgrade("7ev 固件升级超时，690整合升级已中止。");
+            } else {
             QMessageBox::critical(this, "升级超时", 
                 "7ev固件升级操作超时（15分钟）！\n\n"
                 "可能的原因：\n"
@@ -3678,6 +4361,7 @@ void MainWindow::execute7evRemoteCommand(const QString &command)
                 "2. 检查远程设备状态\n"
                 "3. 重启设备后重新尝试\n"
                 "4. 如果问题持续，请联系技术支持");
+            }
             
             if (upgrade7evProcess) {
                 upgrade7evProcess->deleteLater();
@@ -3695,8 +4379,12 @@ void MainWindow::execute7evRemoteCommand(const QString &command)
         // 恢复所有操作按钮
         enableAllOperationButtons();
         
+        if (bundle690UpgradeActive) {
+            abort690BundleUpgrade("无法启动 SSH 执行 7ev 升级，690整合升级已中止。");
+        } else {
         QMessageBox::critical(this, "执行失败", 
             "无法启动SSH进程。\n建议配置SSH密钥认证后重试。");
+        }
         
         if (upgrade7evProcess) {
             upgrade7evProcess->deleteLater();
@@ -3722,6 +4410,36 @@ void MainWindow::executeRemoteCommand(const QString &command, const QString &wor
         
         // 恢复所有操作按钮
         enableAllOperationButtons();
+        
+        const bool okQtStep = (exitStatus == QProcess::NormalExit && exitCode == 0);
+        if (bundle690UpgradeActive) {
+            if (okQtStep) {
+                QString output = remoteCommandProcess->readAllStandardOutput();
+                QString error = remoteCommandProcess->readAllStandardError();
+                logMessage("[成功] qt软件升级操作执行完成！");
+                if (!output.isEmpty()) {
+                    logMessage(QString("[输出] %1").arg(output.trimmed()));
+                }
+                if (!error.isEmpty()) {
+                    logMessage(QString("[信息] %1").arg(error.trimmed()));
+                }
+                statusLabel->setText("qt软件升级完成");
+                statusBar()->showMessage("升级操作成功完成", 3000);
+                advance690BundleAfterStepSuccess();
+            } else {
+                QString error = remoteCommandProcess->readAllStandardError();
+                logMessage(QString("[错误] qt软件升级失败（690整合升级，退出码: %1）").arg(exitCode));
+                if (!error.isEmpty()) {
+                    logMessage(QString("[错误信息] %1").arg(error.trimmed()));
+                }
+                abort690BundleUpgrade("Qt 软件升级失败，690整合升级已中止。请查看日志。");
+            }
+            if (remoteCommandProcess) {
+                remoteCommandProcess->deleteLater();
+                remoteCommandProcess = nullptr;
+            }
+            return;
+        }
         
         if (exitStatus == QProcess::NormalExit && exitCode == 0) {
             QString output = remoteCommandProcess->readAllStandardOutput();
@@ -3857,8 +4575,12 @@ void MainWindow::executeRemoteCommand(const QString &command, const QString &wor
         // 恢复所有操作按钮
         enableAllOperationButtons();
         
+        if (bundle690UpgradeActive) {
+            abort690BundleUpgrade("无法启动 SSH 执行 Qt 升级，690整合升级已中止。");
+        } else {
         QMessageBox::critical(this, "执行失败", 
             "无法启动SSH进程。\n建议配置SSH密钥认证后重试。");
+        }
         
         if (remoteCommandProcess) {
             remoteCommandProcess->deleteLater();
@@ -4215,6 +4937,40 @@ void MainWindow::executeKu5pRemoteCommand(const QString &command)
         // 恢复所有操作按钮
         enableAllOperationButtons();
         
+        const bool okKu5p = (exitStatus == QProcess::NormalExit && exitCode == 0);
+        if (bundle690UpgradeActive) {
+            if (okKu5p) {
+                QString output = upgradeKu5pProcess->readAllStandardOutput();
+                QString error = upgradeKu5pProcess->readAllStandardError();
+                logMessage("[成功] ku5p升级操作执行完成！");
+                if (!output.isEmpty()) {
+                    logMessage(QString("[输出] %1").arg(output.trimmed()));
+                }
+                if (!error.isEmpty()) {
+                    logMessage(QString("[信息] %1").arg(error.trimmed()));
+                }
+                statusLabel->setText("ku5p升级完成");
+                statusBar()->showMessage("ku5p升级操作成功完成", 3000);
+                advance690BundleAfterStepSuccess();
+            } else {
+                QString error = upgradeKu5pProcess->readAllStandardError();
+                QString output = upgradeKu5pProcess->readAllStandardOutput();
+                logMessage(QString("[错误] ku5p升级失败（690整合升级，退出码: %1）").arg(exitCode));
+                if (!error.isEmpty()) {
+                    logMessage(QString("[错误信息] %1").arg(error.trimmed()));
+                }
+                if (!output.isEmpty()) {
+                    logMessage(QString("[输出信息] %1").arg(output.trimmed()));
+                }
+                abort690BundleUpgrade("KU5P 升级失败，690整合升级已中止。请查看日志。");
+            }
+            if (upgradeKu5pProcess) {
+                upgradeKu5pProcess->deleteLater();
+                upgradeKu5pProcess = nullptr;
+            }
+            return;
+        }
+        
         if (exitStatus == QProcess::NormalExit && exitCode == 0) {
             QString output = upgradeKu5pProcess->readAllStandardOutput();
             QString error = upgradeKu5pProcess->readAllStandardError();
@@ -4477,6 +5233,9 @@ void MainWindow::executeKu5pRemoteCommand(const QString &command)
             // 恢复所有操作按钮
             enableAllOperationButtons();
             
+            if (bundle690UpgradeActive) {
+                abort690BundleUpgrade("KU5P 升级超时，690整合升级已中止。");
+            } else {
             QMessageBox::critical(this, "升级超时", 
                 "ku5p升级操作超时（10分钟）！\n\n"
                 "可能的原因：\n"
@@ -4489,6 +5248,7 @@ void MainWindow::executeKu5pRemoteCommand(const QString &command)
                 "2. 检查远程设备状态\n"
                 "3. 重启设备后重新尝试\n"
                 "4. 如果问题持续，请联系技术支持");
+            }
             
             if (upgradeKu5pProcess) {
                 upgradeKu5pProcess->deleteLater();
@@ -4506,8 +5266,12 @@ void MainWindow::executeKu5pRemoteCommand(const QString &command)
         // 恢复所有操作按钮
         enableAllOperationButtons();
         
+        if (bundle690UpgradeActive) {
+            abort690BundleUpgrade("无法启动 SSH 执行 KU5P 升级，690整合升级已中止。");
+        } else {
         QMessageBox::critical(this, "执行失败", 
             "无法启动SSH进程。\n建议配置SSH密钥认证后重试。");
+        }
         
         if (upgradeKu5pProcess) {
             upgradeKu5pProcess->deleteLater();
@@ -4540,6 +5304,40 @@ void MainWindow::executePatchRemoteCommand(const QString &command)
         
         // 恢复所有操作按钮
         enableAllOperationButtons();
+        
+        const bool okPatch = (exitStatus == QProcess::NormalExit && exitCode == 0);
+        if (bundle690UpgradeActive) {
+            if (okPatch) {
+                QString output = upgradePatchProcess->readAllStandardOutput();
+                QString error = upgradePatchProcess->readAllStandardError();
+                logMessage("[成功] 升级补丁操作执行完成！");
+                if (!output.isEmpty()) {
+                    logMessage(QString("[输出] %1").arg(output.trimmed()));
+                }
+                if (!error.isEmpty()) {
+                    logMessage(QString("[信息] %1").arg(error.trimmed()));
+                }
+                statusLabel->setText("升级补丁完成");
+                statusBar()->showMessage("升级补丁操作成功完成", 3000);
+                advance690BundleAfterStepSuccess();
+            } else {
+                QString error = upgradePatchProcess->readAllStandardError();
+                QString output = upgradePatchProcess->readAllStandardOutput();
+                logMessage(QString("[错误] 升级补丁失败（690整合升级，退出码: %1）").arg(exitCode));
+                if (!error.isEmpty()) {
+                    logMessage(QString("[错误信息] %1").arg(error.trimmed()));
+                }
+                if (!output.isEmpty()) {
+                    logMessage(QString("[输出信息] %1").arg(output.trimmed()));
+                }
+                abort690BundleUpgrade("升级补丁失败，690整合升级已中止。请查看日志。");
+            }
+            if (upgradePatchProcess) {
+                upgradePatchProcess->deleteLater();
+                upgradePatchProcess = nullptr;
+            }
+            return;
+        }
         
         if (exitStatus == QProcess::NormalExit && exitCode == 0) {
             QString output = upgradePatchProcess->readAllStandardOutput();
@@ -4709,6 +5507,9 @@ void MainWindow::executePatchRemoteCommand(const QString &command)
             // 恢复所有操作按钮
             enableAllOperationButtons();
             
+            if (bundle690UpgradeActive) {
+                abort690BundleUpgrade("升级补丁超时，690整合升级已中止。");
+            } else {
             QMessageBox::critical(this, "升级补丁超时", 
                 "升级补丁操作超时（5分钟）！\n\n"
                 "可能的原因：\n"
@@ -4721,6 +5522,7 @@ void MainWindow::executePatchRemoteCommand(const QString &command)
                 "2. 检查远程设备状态\n"
                 "3. 检查 /root 目录可用空间\n"
                 "4. 重新尝试升级补丁操作");
+            }
             
             if (upgradePatchProcess) {
                 upgradePatchProcess->deleteLater();
@@ -4738,8 +5540,12 @@ void MainWindow::executePatchRemoteCommand(const QString &command)
         // 恢复所有操作按钮
         enableAllOperationButtons();
         
+        if (bundle690UpgradeActive) {
+            abort690BundleUpgrade("无法启动 SSH 执行升级补丁，690整合升级已中止。");
+        } else {
         QMessageBox::critical(this, "执行失败", 
             "无法启动SSH进程。\n建议配置SSH密钥认证后重试。");
+        }
         
         if (upgradePatchProcess) {
             upgradePatchProcess->deleteLater();
@@ -4759,6 +5565,7 @@ void MainWindow::disableAllOperationButtons()
     upgrade7evSdButton->setEnabled(false);
     upgradeKu5pButton->setEnabled(false);
     upgradePatchButton->setEnabled(false);
+    upgrade690BundleButton->setEnabled(false);
     executeCommandButton->setEnabled(false);
     clearLogButton->setEnabled(false);
     clearOutputButton->setEnabled(false);
@@ -4793,6 +5600,7 @@ void MainWindow::enableAllOperationButtons()
     upgrade7evSdButton->setEnabled(true);
     upgradeKu5pButton->setEnabled(true);
     upgradePatchButton->setEnabled(true);
+    upgrade690BundleButton->setEnabled(true);
     executeCommandButton->setEnabled(true);
     clearLogButton->setEnabled(true);
     clearOutputButton->setEnabled(true);
@@ -4813,7 +5621,25 @@ void MainWindow::enableAllOperationButtons()
     commandLineEdit->setEnabled(true);
     filePathLineEdit->setEnabled(true);
     
-    logMessage("[系统] 升级操作完成，已恢复所有操作按钮");
+    applyBundle690UpgradeButtonLock();
+
+    if (bundle690UpgradeActive) {
+        logMessage("[系统] 690整合升级进行中，单项升级与「690整合包升级」已置灰");
+    } else {
+        logMessage("[系统] 升级操作完成，已恢复所有操作按钮");
+    }
+}
+
+void MainWindow::applyBundle690UpgradeButtonLock()
+{
+    if (!bundle690UpgradeActive)
+        return;
+    upgradeQtButton->setEnabled(false);
+    upgrade7evEmmcButton->setEnabled(false);
+    upgrade7evSdButton->setEnabled(false);
+    upgradeKu5pButton->setEnabled(false);
+    upgradePatchButton->setEnabled(false);
+    upgrade690BundleButton->setEnabled(false);
 }
 
 // ==================== SSH密钥管理功能实现 ====================

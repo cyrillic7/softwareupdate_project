@@ -47,6 +47,7 @@
 #include <QTextStream>
 #include <QCryptographicHash>
 #include <QClipboard>
+#include <functional>
 
 class SettingsDialog;
 
@@ -82,6 +83,7 @@ private slots:
     void onUpgrade7evSd();
     void onUpgradeKu5p();
     void onUpgradePatch();
+    void onUpgrade690BundlePackage();
     void onExecuteCustomCommand();
     void onClearCommandOutput();
     void onCommandInputEnterPressed();
@@ -117,6 +119,8 @@ private:
     bool validateSettings();
     bool validateConnectionSettings();  // 只验证连接设置，不检查文件路径
     bool validateSSHSettings();  // SSH密钥功能专用验证函数
+    void runConnectionTest(std::function<void()> afterSuccess = {});
+    void abortUploadPrecheckConnectionTest(const QString &message);
     void startUpload();
     
     // 设置保存和加载
@@ -218,6 +222,7 @@ private:
     QPushButton *upgrade7evSdButton;
     QPushButton *upgradeKu5pButton;
     QPushButton *upgradePatchButton;
+    QPushButton *upgrade690BundleButton;
     QLabel *statusLabel;
     QProgressBar *transferProgressBar;
     
@@ -323,6 +328,15 @@ private:
     // 按钮状态管理
     void disableAllOperationButtons();
     void enableAllOperationButtons();
+    /** 690整合升级进行中时，将单项升级与整合包按钮保持置灰 */
+    void applyBundle690UpgradeButtonLock();
+
+    void cleanup690BundleExtractDir();
+    void abort690BundleUpgrade(const QString &reason);
+    void advance690BundleAfterStepSuccess();
+    void start690BundleCurrentStep();
+    bool prompt690BundleSevenEvTarget();
+    bool extract690RarToDirectory(const QString &rarPath, const QString &destDir, QString *errorMessage);
     
     QString pendingSSHCommand;  // 待执行的SSH命令
     bool waitingForPassword;    // 是否正在等待密码输入
@@ -334,6 +348,18 @@ private:
     bool is7evSdUpgradeFile = false; // 标记当前是否在处理7ev SD卡升级包
     bool isKu5pUpgradeFile = false; // 标记当前是否在处理KU5P升级包
     bool isPatchUpgradeFile = false; // 标记当前是否在处理升级补丁包
+
+    // 690 整合 RAR 包：按顺序执行 补丁 → 7ev（运行时选择 EMMC/SD）→ Qt → KU5P
+    bool bundle690UpgradeActive = false;
+    int bundle690StepIndex = 0;
+    bool bundle690SevenEvUseSd = false;
+    QString bundle690ExtractDir;
+    QString bundle690EncPatch;
+    QString bundle690EncBoots;
+    QString bundle690EncQt;
+    QString bundle690EncKu5p;
+
+    std::function<void()> pendingAfterSuccessfulConnectionTest;
 };
 
 #endif // MAINWINDOW_H 

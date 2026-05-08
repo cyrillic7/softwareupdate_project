@@ -952,7 +952,13 @@ compiler_clean: compiler_rcc_clean compiler_moc_predefs_clean compiler_moc_heade
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QString \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QStringList \
 		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QTextCodec \
-		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/qtextcodec.h
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/qtextcodec.h \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QDirIterator \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/qdiriterator.h \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QCoreApplication \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtCore/QEventLoop \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtWidgets/QProgressDialog \
+		G:/qt5.12.12/5.12.12/mingw73_64/include/QtWidgets/qprogressdialog.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../obj/mainwindow.o ../../src/mainwindow.cpp
 
 ../obj/crypto_utils.o: ../../src/crypto_utils.cpp ../../src/crypto_utils.h \
